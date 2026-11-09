@@ -1,7 +1,9 @@
+
 {
   "name": "stanley-tech-connect",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Stanley Tech Connect public website and client enquiry starter",
   "main": "server.js",
   "scripts": {

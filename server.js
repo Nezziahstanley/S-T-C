@@ -51,7 +51,7 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false
 }));
-app.use(express.json({ limit: "12mb" }));
+app.use(express.json({ limit: "12mb", verify: (req, _res, buffer) => { if (req.originalUrl === "/api/paystack/webhook") req.rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: false, limit: "30kb" }));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
@@ -122,6 +122,51 @@ async function audit(user, action, entity, entityId, details = {}) {
 app.get("/api/health", (_req, res) => res.json({
   ok: true, service: "Stanley Tech Connect", version: "2.0.0"
 }));
+
+app.post("/api/paystack/webhook", async (req, res) => {
+  if (!PAYSTACK_SECRET_KEY) return res.sendStatus(503);
+  const signature = req.headers["x-paystack-signature"];
+  if (typeof signature !== "string" || !req.rawBody) return res.sendStatus(401);
+  const expected = crypto.createHmac("sha512", PAYSTACK_SECRET_KEY).update(req.rawBody).digest("hex");
+  const supplied = Buffer.from(signature, "utf8");
+  const expectedBytes = Buffer.from(expected, "utf8");
+  if (supplied.length !== expectedBytes.length || !crypto.timingSafeEqual(supplied, expectedBytes)) return res.sendStatus(401);
+
+  const event = req.body;
+  if (event?.event !== "charge.success" || !event?.data?.reference) return res.sendStatus(200);
+  const reference = clean(event.data.reference);
+  const { data: payment, error: lookupError } = await db.from("stc_payments")
+    .select("*").eq("reference", reference).maybeSingle();
+  if (lookupError) return res.sendStatus(500);
+  if (!payment || payment.status === "success") return res.sendStatus(200);
+
+  const expectedAmount = Math.round(Number(payment.amount) * 100);
+  if (event.data.status !== "success" || event.data.amount !== expectedAmount ||
+      event.data.currency !== payment.currency || event.data.reference !== reference) return res.sendStatus(200);
+
+  const verifiedAt = new Date().toISOString();
+  const { error: paymentError } = await db.from("stc_payments").update({
+    status: "success", verified_by: "paystack_webhook", verified_at: verifiedAt,
+    gateway_reference: reference
+  }).eq("id", payment.id).neq("status", "success");
+  if (paymentError) return res.sendStatus(500);
+
+  if (payment.invoice_id) {
+    const { error: invoiceError } = await db.from("stc_invoices")
+      .update({ status: "paid" }).eq("id", payment.invoice_id)
+      .eq("client_user_id", payment.client_user_id);
+    if (invoiceError) return res.sendStatus(500);
+  }
+  if (payment.client_user_id) {
+    const { error: noticeError } = await db.from("stc_notifications").insert({
+      user_id: payment.client_user_id,
+      title: "Payment confirmed",
+      body: "Your payment " + reference + " has been confirmed."
+    });
+    if (noticeError) console.error("Payment notification failed:", noticeError.message);
+  }
+  return res.sendStatus(200);
+});
 
 // Public website content
 app.get("/api/public/services", async (_req, res) => {

@@ -80,6 +80,7 @@ async function loadPublic() {
   ]);
   const serviceItems = services.status === "fulfilled" ? services.value.services : [];
   window.stcServices = serviceItems;
+  if (typeof routePublicPage === "function") routePublicPage();
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   const postItems = posts.status === "fulfilled" ? posts.value.posts : [];
   const icons = ["⌘","▣","◈","⌁","✳","⌂","✦"];

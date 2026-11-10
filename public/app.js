@@ -79,12 +79,13 @@ async function loadPublic() {
     api("/api/public/services"), api("/api/public/portfolio"), api("/api/public/posts")
   ]);
   const serviceItems = services.status === "fulfilled" ? services.value.services : [];
+  window.stcServices = serviceItems;
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   const postItems = posts.status === "fulfilled" ? posts.value.posts : [];
   const icons = ["⌘","▣","◈","⌁","✳","⌂","✦"];
   $("#serviceGrid").innerHTML = serviceItems.length ? serviceItems.map((item,i) => `
-    <article class="service-card"><span class="service-index">0${i+1} / STC</span><span class="service-icon">${icons[i%icons.length]}</span>
-    <h3>${esc(item.name)}</h3><p>${esc(item.summary || item.description)}</p></article>`).join("") : `<div class="loading-card">Our service catalogue is being refreshed. Contact us and we'll help you find the right solution.</div>`;
+    <a class="service-card service-link" href="#service/${esc(item.slug || slugify(item.name))}"><span class="service-index">0${i+1} / STC</span><span class="service-icon">${icons[i%icons.length]}</span>
+    <h3>${esc(item.name)}</h3><p>${esc(item.summary || item.description)}</p><span class="service-more">Explore service ↗</span></a>`).join("") : `<div class="loading-card">Our service catalogue is being refreshed. Contact us and we'll help you find the right solution.</div>`;
   $("#portfolioGrid").innerHTML = portfolioItems.length ? portfolioItems.map((item,i) => `
     <article class="portfolio-card"><div class="portfolio-art"><span>${i===0?"✚":i===1?"▦":"✦"}</span></div><div class="portfolio-body">
     <small>${esc(item.category || "STC PROJECT")}</small><h3>${esc(item.title)}</h3><p>${esc(item.summary || item.details || "")}</p>
@@ -245,3 +246,20 @@ $("#refreshPortal").addEventListener("click",()=>selectTab(state.currentTab));
     }
   }
 })();
+
+function slugify(value){return String(value||"service").toLowerCase().trim().replace(/&/g,"and").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
+function renderServiceRoute(){
+ const match=(location.hash||"").match(/^#service\/([^?]+)/);
+ if(!match){$("#pageView").classList.add("hidden");$("#publicSite").classList.remove("hidden");$("#siteFooter").classList.remove("hidden");return;}
+ const slug=decodeURIComponent(match[1]);
+ const items=window.stcServices||[];
+ const item=items.find(x=>slugify(x.slug||x.name)===slug);
+ $("#publicSite").classList.add("hidden");$("#siteFooter").classList.add("hidden");$("#pageView").classList.remove("hidden");
+ if(!item){$("#pageView").innerHTML='<section class="service-detail-hero"><div><a class="back-link" href="#services">← All services</a><h1>Service not found</h1></div></section>';return;}
+ const name=esc(item.name), summary=esc(item.summary||item.description||"Practical technology solutions designed around your goals.");
+ const details=esc(item.description||item.summary||"We work with you to understand the challenge, design a practical solution and deliver with care.");
+ const points=["A solution shaped around your needs","Clear communication and delivery steps","Thoughtful design and reliable implementation","Support to help you move forward"];
+ $("#pageView").innerHTML='<section class="service-detail-hero"><div class="detail-copy"><a class="back-link" href="#services">← All services</a><div class="eyebrow">STANLEY TECH CONNECT · OUR SERVICES</div><h1>'+name+'<br><em>made purposeful.</em></h1><p>'+summary+'</p><div class="hero-buttons"><a class="btn btn-primary btn-large" href="#contact">Discuss your project ↗</a><a class="btn btn-outline btn-large" href="#services">Explore other services</a></div></div><div class="detail-art"><div class="detail-art-orbit"></div><div class="detail-art-core">STC<span>✦</span></div><small>LEARN • BUILD • CREATE • CONNECT</small></div></section><section class="detail-content"><div><div class="eyebrow">THE STC DIFFERENCE</div><h2>Built around what<br><em>you need to achieve.</em></h2><p class="detail-lead">'+details+'</p></div><div class="detail-list"><h3>What you can expect</h3>'+points.map((p,i)=>'<div class="detail-list-row"><b>0'+(i+1)+'</b><span>'+p+'</span></div>').join("")+'</div></section><section class="detail-cta"><div><div class="eyebrow">LET’S GET STARTED</div><h2>Have a project<br><em>in mind?</em></h2><p>Tell us what you want to achieve. We’ll help you map out the next step.</p></div><a class="btn btn-primary btn-large" href="#contact">Start an enquiry ↗</a></section>';
+ window.scrollTo({top:0,behavior:"instant"});
+}
+window.addEventListener("hashchange",renderServiceRoute);

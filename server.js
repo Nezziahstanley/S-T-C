@@ -64,6 +64,29 @@ const clean = value => typeof value === "string" ? value.trim() : "";
 const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const adminEmail = clean(STC_ADMIN_EMAIL).toLowerCase();
 
+const escapeEmailHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+}[char]));
+async function sendStcEmail({ to, subject, text, replyTo }) {
+  if (!process.env.RESEND_API_KEY) return { sent: false, reason: "email_not_configured" };
+  const from = clean(process.env.STC_EMAIL_FROM) || "Stanley Tech Connect <onboarding@resend.dev>";
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + process.env.RESEND_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from, to: [to], subject, text,
+      ...(replyTo ? { reply_to: replyTo } : {})
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error("Resend email failed (" + response.status + "): " + (result.message || result.name || "Unknown provider error"));
+  return { sent: true, id: result.id || null };
+}
+
+
 async function verifiedUser(req) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -223,9 +246,45 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
     name, email, phone: phone || null, service, subject: subject || service, message
   }).select("id").single();
   if (error) return sendError(res, error, 500);
+  const notificationText = [
+    "New STC website enquiry",
+    "",
+    "Reference: " + data.id,
+    "Name: " + name,
+    "Email: " + email,
+    "Phone: " + (phone || "Not provided"),
+    "Service: " + service,
+    "Subject: " + (subject || service),
+    "",
+    "Message:",
+    message
+  ].join("\\n");
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC enquiry: " + (subject || service),
+      text: notificationText,
+      replyTo: email
+    });
+  } catch (emailError) {
+    console.error("STC enquiry notification email failed:", emailError.message);
+  }
+  // Applicant acknowledgements require a verified sending domain configured as STC_EMAIL_FROM.
+  if (clean(process.env.STC_EMAIL_FROM) && !clean(process.env.STC_EMAIL_FROM).includes("@resend.dev")) {
+    try {
+      await sendStcEmail({
+        to: email,
+        subject: "We received your enquiry - Stanley Tech Connect",
+        text: "Hello " + name + ",\\n\\nThank you for contacting Stanley Tech Connect. We have received your enquiry about " + service + " and our team will get back to you.\\n\\nYour reference: " + data.id + "\\n\\nStanley Tech Connect"
+      });
+    } catch (emailError) {
+      console.error("STC applicant acknowledgement email failed:", emailError.message);
+    }
+  }
   res.status(201).json({
     message: "Your enquiry has reached Stanley Tech Connect. We'll be in touch.",
-    reference: data.id
+    reference: data.id,
+    email_notification: Boolean(process.env.RESEND_API_KEY)
   });
 });
 

@@ -468,12 +468,7 @@ app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
 app.post("/api/auth/password/update", requireUser, authLimiter, async (req, res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (password.length < 10 || password.length > 128) return res.status(400).json({ error: "Use a password between 10 and 128 characters." });
-  const token = (req.headers.authorization || "").slice(7);
-  const userClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { Authorization: "Bearer " + token } }
-  });
-  const { error } = await userClient.auth.updateUser({ password });
+  const { error } = await db.auth.admin.updateUserById(req.user.id, { password });
   if (error) return sendError(res, error, 400);
   await audit(req.user, "change_password", "auth_user", req.user.id, {});
   res.json({ message: "Your password has been updated. Keep it somewhere secure." });

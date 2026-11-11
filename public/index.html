@@ -24,7 +24,7 @@
       <a href="#home">Home</a><a href="#page/about">About</a><a href="#page/services">Services</a><a href="#page/portfolio">Portfolio</a><a href="#page/training">Training</a><a href="#page/graduates">Graduates</a><a href="#page/contact">Contact</a>
     </nav>
     <div class="top-actions">
-      <button class="hidden" id="openLogin" type="button" aria-label="Open client portal">Client portal</button>
+      <button class="btn btn-outline-light" id="openLogin" type="button" aria-label="Open student and client portal">Student / Client Portal</button>
       <a class="btn btn-primary" href="#page/contact">Get Started</a>
     </div>
   </header>
@@ -131,7 +131,7 @@
       <div><h3>Our Services</h3><ul><li>Web Development</li><li>Graphic Design</li><li>Computer Training</li><li>Data Analysis Training</li><li>Virtual Assistant Training</li><li>SIWES / IT Placement</li><li>IT Consulting</li><li>Student Project Support</li><li>Computer Repairs</li></ul></div>
       <div><h3>Get In Touch</h3><ul class="footer-contact"><li><span>☎</span><a href="tel:+2347041145338">07041145338</a></li><li><span>✉</span><a href="mailto:stanleytechconnect@gmail.com">stanleytechconnect@gmail.com</a></li><li><span>⌖</span><span><b>Head Office</b>No. 17 Hon. Dr. Alex Egbona Road, Agbara Ekureku, Abi LGA, Cross River State</span></li><li><span>⌖</span><span><b>Branch Office</b>John Ifere Street, Ntankpo Close, Federal Polytechnic Ugep, Cross River State</span></li></ul></div>
     </div>
-    <div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All Rights Reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span><button id="footerLogin">Client & staff login ↗</button></div>
+    <div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All Rights Reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span><button id="footerLogin">Student, client & staff portal ↗</button></div>
   </footer>
 
   <dialog id="loginDialog" class="login-dialog"><button class="dialog-close" id="closeLogin" aria-label="Close">×</button><div class="login-brand"><span class="brand-symbol">S<span>T</span>C</span><div class="eyebrow">STC SECURE WORKSPACE</div></div><h2 id="loginTitle">Welcome to your<br><em>STC workspace.</em></h2><p id="loginHint">Enter your email and we'll send you a secure six-digit sign-in code.</p><form id="requestCodeForm"><label>Email address<input id="loginEmail" type="email" required placeholder="you@example.com" autocomplete="email"></label><button class="btn btn-primary btn-large" type="submit">Send sign-in code ↗</button></form><form id="verifyCodeForm" class="hidden"><label>Six-digit code<input id="loginCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000" autocomplete="one-time-code"></label><button class="btn btn-primary btn-large" type="submit">Verify & continue ↗</button><button type="button" class="text-button" id="changeEmail">Use a different email</button></form><p id="loginStatus" class="form-status" aria-live="polite"></p><small class="login-foot">Your account is protected by email verification.</small></dialog>

@@ -188,7 +188,12 @@ app.get("/api/public/posts", async (_req, res) => {
   if (error) return sendError(res, error, 500);
   res.json({ posts: data || [] });
 });
-app.get("/api/public/graduates", async (_req, res) => {\n  const { data, error } = await db.from("stc_media").select("id,title,description,storage_key,created_at").eq("category", "Graduating Students").eq("is_published", true).order("created_at", { ascending: false }).limit(60);\n  if (error) return sendError(res, error, 500);\n  res.json({ photos: (data || []).map(item => ({ ...item, url: db.storage.from("stc-media").getPublicUrl(item.storage_key).data.publicUrl })) });\n});\napp.get("/api/public/media", async (_req, res) => {
+app.get("/api/public/graduates", async (_req, res) => {
+  const { data, error } = await db.from("stc_media").select("id,title,description,storage_key,created_at").eq("category", "Graduating Students").eq("is_published", true).order("created_at", { ascending: false }).limit(60);
+  if (error) return sendError(res, error, 500);
+  res.json({ photos: (data || []).map(item => ({ ...item, url: db.storage.from("stc-media").getPublicUrl(item.storage_key).data.publicUrl })) });
+});
+app.get("/api/public/media", async (_req, res) => {
   const { data, error } = await db.from("stc_media")
     .select("id,title,description,category,media_type,storage_key,is_featured")
     .eq("is_published", true).order("is_featured", { ascending: false });
@@ -288,11 +293,20 @@ app.get("/api/client/dashboard", requireUser, async (req, res) => {
   ]);
   const error = results.find(item => item.error)?.error;
   if (error) return sendError(res, error, 500);
-  const [profile, projects, quotes, invoices, payments, tickets, notifications, enrollments] = results;\n  const [certificates, awards] = await Promise.all([\n    db.from("stc_certificates").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),\n    db.from("stc_awards").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false })\n  ]);\n  if (certificates.error || awards.error) return sendError(res, certificates.error || awards.error, 500);\n  const avatarUrl = profile.data?.avatar_key ? (await db.storage.from("stc-private-files").createSignedUrl(profile.data.avatar_key, 600)).data?.signedUrl || null : null;\n  const signedCertificates = await Promise.all((certificates.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));\n  const signedAwards = await Promise.all((awards.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
+  const [profile, projects, quotes, invoices, payments, tickets, notifications, enrollments] = results;
+  const [certificates, awards] = await Promise.all([
+    db.from("stc_certificates").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),
+    db.from("stc_awards").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false })
+  ]);
+  if (certificates.error || awards.error) return sendError(res, certificates.error || awards.error, 500);
+  const avatarUrl = profile.data?.avatar_key ? (await db.storage.from("stc-private-files").createSignedUrl(profile.data.avatar_key, 600)).data?.signedUrl || null : null;
+  const signedCertificates = await Promise.all((certificates.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
+  const signedAwards = await Promise.all((awards.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
   res.json({
     profile: profile.data || {}, projects: projects.data || [], quotes: quotes.data || [],
     invoices: invoices.data || [], payments: payments.data || [],
-    tickets: tickets.data || [], notifications: notifications.data || [], enrollments: enrollments.data || [],\n    certificates: signedCertificates, awards: signedAwards, avatar_url: avatarUrl
+    tickets: tickets.data || [], notifications: notifications.data || [], enrollments: enrollments.data || [],
+    certificates: signedCertificates, awards: signedAwards, avatar_url: avatarUrl
   });
 });
 app.patch("/api/client/profile", requireUser, async (req, res) => {
@@ -570,11 +584,13 @@ app.get("/api/public/certificates/:number", async (req,res)=>{
   if(!data||data.status!=="issued")return res.status(404).json({error:"No active STC certificate matches that number."});
   res.json({certificate:data,verified:true});
 });
-\nconst adminTables = {
+
+const adminTables = {
   enrollments: "stc_training_enrollments", enquiries: "stc_enquiries", projects: "stc_projects", quotes: "stc_quotes",
   invoices: "stc_invoices", payments: "stc_payments", tickets: "stc_tickets",
   services: "stc_services", posts: "stc_posts", portfolio: "stc_portfolio",
-  media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles",\n  certificates: "stc_certificates", awards: "stc_awards"
+  media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles",
+  certificates: "stc_certificates", awards: "stc_awards"
 };
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];

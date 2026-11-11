@@ -99,6 +99,58 @@ function initHomeVisuals() {
 }
 initHomeVisuals();
 
+function initScrollReveals() {
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const revealSelector = [
+    "#publicSite > section:not(.hero)",
+    "#publicSite .section-head",
+    "#publicSite .service-card",
+    "#publicSite .why-grid article",
+    "#publicSite .testimonials-grid article",
+    "#publicSite .stc-service-card",
+    "#publicSite .portfolio-tile",
+    "#publicSite .stc-training-benefit-grid article",
+    "#publicSite .contact-detail",
+    "#publicSite .lovable-about-team-card",
+    "#publicSite .lovable-about-values-grid article",
+    "#publicSite .lovable-about-award-grid figure"
+  ].join(",");
+  const reveal = () => {
+    const nodes = document.querySelectorAll(revealSelector);
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      nodes.forEach(node => node.classList.add("stc-reveal-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("stc-reveal-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -36px 0px" });
+    nodes.forEach((node, index) => {
+      if (node.dataset.stcRevealReady) return;
+      node.dataset.stcRevealReady = "true";
+      node.classList.add("stc-reveal");
+      node.style.setProperty("--stc-reveal-delay", (Math.min(index % 4, 3) * 75) + "ms");
+      observer.observe(node);
+    });
+  };
+  reveal();
+  const site = document.querySelector("#publicSite");
+  if (site && "MutationObserver" in window) {
+    let queued = false;
+    const mutationObserver = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; reveal(); });
+    });
+    mutationObserver.observe(site, { childList: true, subtree: true });
+  }
+  window.addEventListener("hashchange", () => requestAnimationFrame(reveal));
+}
+initScrollReveals();
+
 $("#requestCodeForm").addEventListener("submit", async event => {
   event.preventDefault();
   const email = $("#loginEmail").value.trim().toLowerCase();

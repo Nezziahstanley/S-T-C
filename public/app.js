@@ -247,7 +247,8 @@ async function loadPublic() {
     ? services.value.services : fallbackServices;
   window.stcServices = serviceItems;
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
-  window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];\n  window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
+  window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
+  window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
   renderSTCAnnouncements(window.stcPosts);
   if (typeof renderPageRoute === "function") renderPageRoute();
   if (typeof routePublicPage === "function") routePublicPage();
@@ -350,7 +351,8 @@ function printStudentCard(profile, avatarUrl) {
   win.document.write('<!doctype html><html><head><title>STC Student ID Card</title><style>*{box-sizing:border-box}body{font-family:Arial;background:#edf2f7;padding:35px}.card{width:540px;height:340px;background:linear-gradient(125deg,#101b36,#153f62);color:white;border-radius:18px;padding:25px;position:relative;overflow:hidden}.head{display:flex;align-items:center;gap:12px;border-bottom:1px solid #ffffff55;padding-bottom:14px}.logo{font-size:24px;font-weight:900;color:#1bd2f4}.head small{display:block;letter-spacing:2px;color:#b7e9f6}.body{display:flex;gap:22px;align-items:center;margin-top:24px}.body img,.photo-placeholder{width:115px;height:135px;object-fit:cover;border:3px solid white;border-radius:9px}.photo-placeholder{display:grid;place-items:center;background:#d8e9f2;color:#10213d;font-size:54px}.details h2{font-size:24px;margin:0 0 12px}.details p{margin:8px 0;color:#d4e8f4;font-size:13px}.id{margin-top:18px;color:#21d4f4;font-weight:bold;letter-spacing:1px}.foot{position:absolute;bottom:16px;right:24px;font-size:10px;color:#a9d6e5}@media print{body{padding:0;background:white}}</style></head><body><article class="card"><div class="head"><div class="logo">STC</div><div><b>STANLEY TECH CONNECT</b><small>STUDENT IDENTIFICATION CARD</small></div></div><div class="body">'+photo+'<div class="details"><h2>'+esc(profile.full_name||"Student")+'</h2><p>Institution: '+esc(profile.institution||"—")+'</p><p>Department: '+esc(profile.department||"—")+'</p><p>Level: '+esc(profile.study_level||"—")+'</p><div class="id">'+esc(profile.student_number||"STC STUDENT")+'</div></div></div><div class="foot">LEARN · BUILD · CREATE · CONNECT</div></article><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>');
   win.document.close();
 }
-\nasync function renderClient(tab) {
+
+async function renderClient(tab) {
   const data = await api("/api/client/dashboard"); state.dashboard = data;
   if (tab === "overview") {
     const totalDue = data.invoices.filter(x=>x.status!=="paid").reduce((n,x)=>n+Number(x.amount||0),0);

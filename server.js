@@ -596,7 +596,9 @@ app.get("/api/admin/students", requireStaff, async (req,res) => {
   const ids=(profiles||[]).map(p=>p.user_id);
   const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
   if(enrollError)return sendError(res,enrollError,500);
-  res.json({students:(profiles||[]).map(p=>({...p,enrollments:(enrollments||[]).filter(e=>e.user_id===p.user_id)}))});
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({students:(profiles||[]).map(p=>({...p,enrollments:(enrollments||[]).filter(e=>e.user_id===p.user_id),projects:(projects||[]).filter(x=>x.client_user_id===p.user_id)}))});
 });
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];

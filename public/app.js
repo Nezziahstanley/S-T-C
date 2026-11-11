@@ -38,7 +38,7 @@ $("#year").textContent = new Date().getFullYear();
 
 function initHomeVisuals() {
   const header = $("#siteHeader");
-  const navLinks = $(".main-nav a");
+  const navLinks = Array.from(document.querySelectorAll(".main-nav a"));
   const updateHeader = () => {
     if (!header) return;
     const hash = location.hash || "#home";
@@ -53,8 +53,8 @@ function initHomeVisuals() {
   window.addEventListener("hashchange", updateHeader);
   updateHeader();
 
-  const slides = $(".hero-slide");
-  const indicators = $(".hero-indicator");
+  const slides = Array.from(document.querySelectorAll(".hero-slide"));
+  const indicators = Array.from(document.querySelectorAll(".hero-indicator"));
   if (slides.length) {
     let current = Math.max(0, slides.findIndex(slide => slide.classList.contains("is-active")));
     const showSlide = index => {
@@ -70,7 +70,7 @@ function initHomeVisuals() {
     window.setInterval(() => showSlide(current + 1), 30000);
   }
 
-  const counters = $(".counter[data-count]");
+  const counters = Array.from(document.querySelectorAll(".counter[data-count]"));
   const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finishCounter = node => {
     node.textContent = Number(node.dataset.count || 0).toLocaleString("en-NG") + (node.dataset.suffix || "");

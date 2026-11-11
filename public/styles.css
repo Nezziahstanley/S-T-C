@@ -819,3 +819,13 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 @media(max-width:760px){.stc-announcement{margin-top:68px;padding:0 16px;gap:10px;min-height:42px}.stc-announcement-label{font-size:9px}.stc-marquee-item{font-size:11px}.stc-video-grid{grid-template-columns:1fr 1fr;gap:12px}.stc-video-card{min-height:180px}.stc-video-card.stc-video-feature{grid-column:span 2;grid-row:auto;min-height:260px}.stc-video-caption{left:14px;bottom:14px}.stc-video-caption h3{font-size:1rem}}
 @media(max-width:420px){.stc-video-grid{grid-template-columns:1fr}.stc-video-card.stc-video-feature{grid-column:auto;min-height:220px}}
 @media(prefers-reduced-motion:reduce){.stc-marquee-track{animation:none;white-space:normal;width:auto;flex-wrap:wrap}.stc-announcement{min-height:48px}.stc-stock-video{display:none}}
+
+
+/* SIWES / IT placement and new training programme callout */
+.stc-placement-callout{display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:center;margin:38px 0;padding:clamp(24px,4vw,44px);border:1px solid rgba(0,210,255,.22);border-radius:24px;background:linear-gradient(135deg,rgba(7,28,55,.98),rgba(12,48,78,.94));color:#fff;box-shadow:0 20px 55px rgba(4,18,38,.12)}
+.stc-placement-callout h2{margin:10px 0 12px;font-size:clamp(1.6rem,3vw,2.35rem);line-height:1.15}
+.stc-placement-callout p{max-width:760px;color:rgba(255,255,255,.78);line-height:1.8}
+.stc-placement-callout .eyebrow{color:#00d2ff}
+.stc-placement-points{display:grid;gap:12px;padding:22px;border:1px solid rgba(255,255,255,.15);border-radius:16px;background:rgba(255,255,255,.06)}
+.stc-placement-points span{font-weight:600;color:#e8f8ff}
+@media(max-width:760px){.stc-placement-callout{grid-template-columns:1fr;gap:20px;padding:24px}.stc-placement-points{padding:18px}}

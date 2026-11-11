@@ -687,3 +687,66 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
  .lovable-about-modal-body{padding:18px}
 }
 @media(prefers-reduced-motion:reduce){.lovable-about-award-grid figure,.lovable-about-team-image img,.lovable-about-values-grid article,.lovable-about-mission-grid article{transition:none}}
+
+
+/* Services page enhancement — preserves the Lovable hero and overall page rhythm */
+.stc-services-intro{display:grid;grid-template-columns:1.1fr .9fr;gap:42px;align-items:end;margin:0 0 34px}
+.stc-services-intro h2,.stc-services-process-heading h2,.stc-services-why h2{font-size:clamp(2rem,4vw,3rem);line-height:1.12;letter-spacing:-.045em;color:#10234b;margin:12px 0 0;font-weight:850}
+.stc-services-intro h2 em,.stc-services-process-heading h2 em,.stc-services-why h2 em{font-style:normal;background:linear-gradient(110deg,#1769e0,#00b8e8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stc-services-intro>p,.stc-services-process-heading>p,.stc-services-why>div>p{color:#64748b;font-size:15px;line-height:1.85;margin:0}
+.stc-services-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 24px;flex-wrap:wrap}
+.stc-service-filters{display:flex;flex-wrap:wrap;gap:8px}
+.stc-service-search{display:flex;align-items:center;gap:9px;width:min(290px,100%);height:44px;padding:0 14px;border:1px solid #dce5f0;border-radius:999px;background:#fff;color:#1769e0}
+.stc-service-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#10234b;font:inherit;font-size:13px}
+.stc-services-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.stc-service-card{min-width:0;overflow:hidden;border:1px solid #e3eaf3;border-radius:20px;background:#fff;box-shadow:0 7px 25px rgba(16,35,75,.055);transition:transform .3s ease,box-shadow .3s ease}
+.stc-service-card:hover{transform:translateY(-6px);box-shadow:0 18px 38px rgba(16,35,75,.13)}
+.stc-service-card.hidden{display:none}
+.stc-service-image{position:relative;display:block;height:190px;overflow:hidden;background:#eaf1f9}
+.stc-service-image:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,26,50,.08),rgba(8,26,50,.5))}
+.stc-service-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .65s ease}
+.stc-service-card:hover .stc-service-image img{transform:scale(1.06)}
+.stc-service-image>span{position:absolute;z-index:1;left:17px;bottom:15px;color:#fff;font-size:9px;font-weight:800;letter-spacing:.13em}
+.stc-service-image>b{position:absolute;z-index:1;right:15px;top:14px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.92);color:#1769e0;font-size:17px}
+.stc-service-card-body{padding:21px 22px 22px}
+.stc-service-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.stc-service-number{color:#1769e0;font-size:11px;font-weight:900;letter-spacing:.12em}
+.stc-service-category{padding:5px 9px;border-radius:999px;background:#edf5ff;color:#1769e0;font-size:10px;font-weight:800}
+.stc-service-card h3{font-size:19px;line-height:1.25;color:#10234b;font-weight:850;margin:0 0 9px}
+.stc-service-card p{min-height:68px;color:#64748b;font-size:13px;line-height:1.7;margin:0 0 15px}
+.stc-service-card ul{display:grid;grid-template-columns:1fr 1fr;gap:9px 8px;list-style:none;padding:0;margin:0 0 18px}
+.stc-service-card li{display:flex;align-items:flex-start;gap:6px;color:#52657b;font-size:11px;line-height:1.4}
+.stc-service-card li span{color:#0aaf91;font-weight:900}
+.stc-service-link{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid #edf1f6;color:#1769e0;font-size:12px;font-weight:850}
+.stc-service-link span{font-size:17px;transition:transform .2s ease}
+.stc-service-link:hover span{transform:translate(3px,-3px)}
+.stc-services-empty{padding:24px;text-align:center;color:#64748b}
+.stc-services-process-heading{text-align:center;max-width:700px;margin:0 auto 36px}
+.stc-services-process-heading h2{margin:10px 0 12px}
+.stc-services-process-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.stc-services-process-grid article{position:relative;padding:28px;border:1px solid #e1e9f3;border-radius:20px;background:#fff;box-shadow:0 6px 22px rgba(16,35,75,.05)}
+.stc-services-process-grid article>b{position:absolute;right:22px;top:20px;color:#d7e5f5;font-size:13px;letter-spacing:.12em}
+.stc-services-process-grid article>span{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#1769e0,#00b8e8);color:#fff;font-size:21px}
+.stc-services-process-grid h3{margin:18px 0 8px;color:#10234b;font-size:17px}
+.stc-services-process-grid p{margin:0;color:#64748b;font-size:13px;line-height:1.75}
+.stc-services-why{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.stc-services-why h2{margin:12px 0 17px}
+.stc-services-why .btn{margin-top:22px}
+.stc-services-benefits{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stc-services-benefits>div{display:flex;gap:12px;align-items:flex-start;padding:19px;border:1px solid #e2eaf3;border-radius:16px;background:#fff}
+.stc-services-benefits>div>b{display:grid;place-items:center;flex:0 0 35px;width:35px;height:35px;border-radius:11px;background:#eaf4ff;color:#1769e0}
+.stc-services-benefits strong,.stc-services-benefits small{display:block}
+.stc-services-benefits strong{color:#10234b;font-size:12px;margin:2px 0 6px}
+.stc-services-benefits small{color:#64748b;font-size:11px;line-height:1.6}
+.stc-services-faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:55px;align-items:start}
+.stc-services-faq .stc-services-process-heading{text-align:left;margin:0}
+.stc-services-faq-list details{border-bottom:1px solid #e2eaf3;padding:17px 0}
+.stc-services-faq-list summary{display:flex;justify-content:space-between;gap:20px;align-items:center;cursor:pointer;list-style:none;color:#10234b;font-size:14px;font-weight:800}
+.stc-services-faq-list summary::-webkit-details-marker{display:none}
+.stc-services-faq-list summary span{color:#1769e0;font-size:20px;transition:transform .2s ease}
+.stc-services-faq-list details[open] summary span{transform:rotate(45deg)}
+.stc-services-faq-list details p{margin:12px 25px 0 0;color:#64748b;font-size:13px;line-height:1.8}
+@media(max-width:950px){.stc-services-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stc-services-why{gap:30px}}
+@media(max-width:650px){.stc-services-intro,.stc-services-why,.stc-services-faq{grid-template-columns:1fr;gap:20px}.stc-services-grid{grid-template-columns:1fr;gap:16px}.stc-service-image{height:190px}.stc-service-card p{min-height:0}.stc-services-process-grid{grid-template-columns:1fr}.stc-services-benefits{grid-template-columns:1fr 1fr}.stc-services-faq{gap:12px}.stc-services-toolbar{align-items:stretch}.stc-service-search{width:100%}}
+@media(max-width:420px){.stc-services-benefits{grid-template-columns:1fr}.stc-service-card-body{padding:18px}}
+@media(prefers-reduced-motion:reduce){.stc-service-card,.stc-service-image img,.stc-service-link span{transition:none}}

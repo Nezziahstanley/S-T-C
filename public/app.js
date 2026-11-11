@@ -392,7 +392,7 @@ async function renderAdmin(tab) {
         tab==="tickets" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="closed">Close</button>` :
         tab==="projects" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="completed">Complete</button>` :
         tab==="staff" ? `<button class="action-btn" data-staff="${esc(x.user_id)}" data-active="${!x.is_active}">${x.is_active?"Deactivate":"Activate"}</button>` :
-        tab==="posts" ? `<button class="action-btn" data-publish="${x.id}" data-next-status="${x.status==="published"?"draft":"published"}">${x.status==="published"?"Unpublish":"Publish"}</button>` : "—";
+        tab==="posts" ? `<button class="action-btn" data-edit-post="${x.id}" data-title="${esc(x.title)}" data-excerpt="${esc(x.excerpt||"")}">Edit</button><button class="action-btn" data-publish="${x.id}" data-next-status="${x.status==="published"?"draft":"published"}">${x.status==="published"?"Unpublish":"Publish"}</button><button class="action-btn" data-delete-post="${x.id}">Remove</button>` : "—";
       return `<tr>${cells.map(c=>`<td>${typeof c==="string"&&c.startsWith("<span")?c:esc(c)}</td>`).join("")}<td>${actions}</td></tr>`;
     });
     const createButton = ["projects","quotes","invoices","services","portfolio","posts","staff"].includes(tab) ? `<button class="btn btn-primary" id="createRecord">+ Add ${esc(tab.slice(0,-1))}</button>` : "";

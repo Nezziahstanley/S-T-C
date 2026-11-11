@@ -268,7 +268,7 @@ function renderServiceRoute(){
 }
 
 function renderPageRoute(){
- const match=(location.hash||"").match(/^#page\\/([^?]+)/);
+ const match=(location.hash||"").match(/^#page\/([^?]+)/);
  if(!match){renderServiceRoute();return;}
  const page=decodeURIComponent(match[1]).toLowerCase();
  const services=window.stcServices||[], projects=window.stcPortfolio||[], posts=window.stcPosts||[];

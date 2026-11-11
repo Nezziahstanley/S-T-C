@@ -444,6 +444,20 @@ function renderPageRoute(){
  if(!pages[page]){location.hash="#page/services";return;}
  $("#publicSite").classList.add("hidden");$("#pageView").classList.remove("hidden");
  $("#pageView").innerHTML=pages[page]();$("#siteFooter").classList.remove("hidden");
+ if(page==="about"){
+  const team=window.stcAboutTeam||[];
+  const modal=$("#aboutTeamModal"), content=$("#aboutTeamModalContent");
+  const close=()=>{modal?.classList.add("hidden");document.body.classList.remove("about-modal-open");};
+  $("#pageView [data-about-member]").forEach(card=>card.addEventListener("click",()=>{
+   const m=team[Number(card.dataset.aboutMember)];if(!m||!modal||!content)return;
+   const gallery=(m.gallery||[]).map((img,i)=>'<figure><img src="/assets/'+img+'" alt="'+esc(m.name)+' — photo '+(i+1)+'" loading="lazy"></figure>').join("");
+   content.innerHTML='<div class="lovable-about-modal-hero"><img src="/assets/'+m.img+'" alt="'+esc(m.name)+'"></div><div class="lovable-about-modal-body"><span class="lovable-about-pill">'+esc(m.role)+'</span><h2>'+esc(m.name)+'</h2><p>'+esc(m.bio)+'</p><h3>Skills &amp; Expertise</h3><div class="lovable-about-skill-list">'+m.skills.map(x=>'<span>✓ '+esc(x)+'</span>').join("")+'</div>'+(gallery?'<h3 class="lovable-about-gallery-title">Training Photos &amp; Work</h3><div class="lovable-about-modal-gallery">'+gallery+'</div>':'')+'<div class="lovable-about-actions"><a class="btn btn-primary" href="#page/contact">Contact</a><a class="btn btn-outline-light" href="https://wa.me/2347041145338?text='+encodeURIComponent("Hello "+m.name+", I saw your profile on Stanley Tech Connect and would like to chat.")+'" target="_blank" rel="noreferrer">WhatsApp</a></div></div>';
+   modal.classList.remove("hidden");document.body.classList.add("about-modal-open");
+  }));
+  $("#aboutTeamClose")?.addEventListener("click",close);
+  modal?.addEventListener("click",e=>{if(e.target===modal)close();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))close();},{once:false});
+ }
  window.scrollTo({top:0,behavior:"instant"});
  $$("#pageView [data-filter]").forEach(b=>b.addEventListener("click",()=>{$$("#pageView [data-filter]").forEach(x=>x.classList.toggle("active",x===b));$$("#pageView [data-category]").forEach(x=>x.classList.toggle("hidden",b.dataset.filter!=="All"&&x.dataset.category!==b.dataset.filter));}));
  $$("#pageView [data-title]").forEach(t=>t.addEventListener("click",()=>{const modal=$("#portfolioModal");if(!modal)return;$("#modalCategory").textContent=t.dataset.category;$("#modalTitle").textContent=t.dataset.title;$("#modalDescription").textContent=t.dataset.description;modal.classList.remove("hidden");}));

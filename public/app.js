@@ -166,6 +166,10 @@ $("#requestCodeForm").addEventListener("submit", async event => {
     $("#loginCode").focus();
   } catch (error) { status.textContent = error.message; }
 });
+$("#usePasswordLogin").addEventListener("click",()=>{$("#requestCodeForm").classList.add("hidden");$("#verifyCodeForm").classList.add("hidden");$("#passwordLoginForm").classList.remove("hidden");$("#loginHint").textContent="Enter the password you set for your STC account. New users can still use email verification.";$("#loginStatus").textContent="";});
+$("#useEmailCode").addEventListener("click",()=>{$("#passwordLoginForm").classList.add("hidden");$("#verifyCodeForm").classList.add("hidden");$("#requestCodeForm").classList.remove("hidden");$("#loginHint").textContent="Enter your email and we will send you a secure six-digit sign-in code." ;$("#loginStatus").textContent="";});
+$("#passwordLoginForm").addEventListener("submit",async e=>{e.preventDefault();const email=$("#loginEmail").value.trim().toLowerCase(),password=$("#loginPassword").value;$("#loginStatus").textContent="Signing in securely…";try{const result=await api("/api/auth/password/sign-in",{method:"POST",body:JSON.stringify({email,password})});state.token=result.access_token;state.user=result.user;state.role=result.role;state.isAdmin=result.is_admin;sessionStorage.setItem("stc_token",state.token);closeLogin();await enterPortal();}catch(err){$("#loginStatus").textContent=err.message;}});
+$("#forgotPasswordFromLogin").addEventListener("click",async()=>{const email=$("#loginEmail").value.trim().toLowerCase();if(!email){$("#loginStatus").textContent="Enter your account email first.";return;}try{const r=await api("/api/auth/password/reset",{method:"POST",body:JSON.stringify({email})});$("#loginStatus").textContent=r.message;}catch(err){$("#loginStatus").textContent=err.message;}});
 $("#changeEmail").addEventListener("click", () => {
   $("#verifyCodeForm").classList.add("hidden"); $("#requestCodeForm").classList.remove("hidden");
   $("#loginTitle").innerHTML = "Welcome to your<br><em>STC workspace.</em>";

@@ -300,7 +300,7 @@ app.get("/api/client/dashboard", requireUser, async (req, res) => {
   ]);
   if (certificates.error || awards.error) return sendError(res, certificates.error || awards.error, 500);
   const avatarUrl = profile.data?.avatar_key ? (await db.storage.from("stc-private-files").createSignedUrl(profile.data.avatar_key, 600)).data?.signedUrl || null : null;
-  const signedCertificates = await Promise.all((certificates.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
+  const signedCertificates = await Promise.all((certificates.data || []).map(async item => ({ ...item, signature_key: undefined, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
   const signedAwards = await Promise.all((awards.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
   res.json({
     profile: profile.data || {}, projects: projects.data || [], quotes: quotes.data || [],
@@ -383,7 +383,7 @@ app.post("/api/client/invoices/:id/pay", requireUser, async (req, res) => {
     headers: { Authorization: "Bearer " + PAYSTACK_SECRET_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       email: req.user.email, amount, currency: invoice.currency || "NGN", reference,
-      callback_url: (STC_PUBLIC_URL || "").replace(/\/$/, "") + "/?payment=verify",
+      callback_url: (STC_PUBLIC_URL || "https://stanley-tech-connect.onrender.com").replace(/\/$/, "") + "/?payment=verify",
       metadata: { invoice_id: invoice.id, client_user_id: req.user.id }
     })
   });
@@ -539,6 +539,7 @@ app.post("/api/admin/certificates", requireStaff, async (req,res) => {
   const certificate_title=clean(req.body?.certificate_title)|| (certificate_type==="service"?"Certificate of Service":"Certificate of Completion");
   const programme=clean(req.body?.programme), description=clean(req.body?.description), grade=clean(req.body?.grade);
   const enrollment_id=req.body?.enrollment_id?Number(req.body.enrollment_id):null;
+  const project_id=req.body?.project_id?Number(req.body.project_id):null;
   if(!user_id||!programme||programme.length>180||certificate_title.length>160) return res.status(400).json({error:"Select the recipient and enter the course or service."});
   let recipient_name=clean(req.body?.recipient_name);
   if(!recipient_name){const {data:p}=await db.from("stc_profiles").select("full_name").eq("user_id",user_id).maybeSingle();recipient_name=p?.full_name||"";}
@@ -548,10 +549,11 @@ app.post("/api/admin/certificates", requireStaff, async (req,res) => {
     const {data:e}=await db.from("stc_training_enrollments").select("id,user_id,status,course_name").eq("id",enrollment_id).eq("user_id",user_id).maybeSingle();
     if(!e||e.status!=="completed")return res.status(409).json({error:"Course certificates can only be issued for completed enrolments."});
   }
+  if(certificate_type==="service") { if(!project_id)return res.status(400).json({error:"Select a completed client project or service before issuing a service certificate."}); const {data:project}=await db.from("stc_projects").select("id").eq("id",project_id).eq("client_user_id",user_id).eq("status","completed").maybeSingle(); if(!project)return res.status(409).json({error:"Service certificates can only be issued for completed projects belonging to the selected user."}); }
   const {data:sig}=await db.from("stc_brand_signatures").select("signer_name,signer_title,signature_key").eq("id",1).maybeSingle();
   if(!sig?.signature_key||!sig.signer_name||!sig.signer_title)return res.status(409).json({error:"Save the CEO electronic signature and signatory details first."});
   const certificate_number="STC-CERT-"+new Date().getFullYear()+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
-  const {data,error}=await db.from("stc_certificates").insert({user_id,enrollment_id,certificate_number,recipient_name,programme,certificate_title,description,grade,certificate_type,service_name:certificate_type==="service"?programme:null,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
+  const {data,error}=await db.from("stc_certificates").insert({user_id,enrollment_id,project_id:certificate_type==="service"?project_id:null,certificate_number,recipient_name,programme,certificate_title,description,grade,certificate_type,service_name:certificate_type==="service"?programme:null,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
   if(error)return sendError(res,error,400);
   await db.from("stc_notifications").insert({user_id,title:"A new STC certificate is ready",body:"Your "+programme+" certificate "+certificate_number+" is now available in your STC workspace."});
   await audit(req.user,"issue_certificate","certificates",data.id,{certificate_number,certificate_type});
@@ -589,7 +591,7 @@ const adminTables = {
 };
 app.get("/api/admin/students", requireStaff, async (req,res) => {
   if (!staffCan(req,"enrollments")) return res.status(403).json({error:"Your staff role cannot access student records."});
-  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").eq("account_type","student").order("full_name").limit(300);
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
   if(error)return sendError(res,error,500);
   const ids=(profiles||[]).map(p=>p.user_id);
   const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};

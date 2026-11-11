@@ -252,7 +252,6 @@ async function loadPublic() {
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
   window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
-  window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
   renderSTCAnnouncements(window.stcPosts);
   if (typeof renderPageRoute === "function") renderPageRoute();
   if (typeof routePublicPage === "function") routePublicPage();

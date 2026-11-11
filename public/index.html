@@ -14,32 +14,47 @@
 </head>
 <body>
   <div id="toast" class="toast" role="status"></div>
-  <header class="topbar">
-    <a class="brand" href="#home" aria-label="Stanley Tech Connect home"><span class="brand-symbol">S<span>T</span>C</span><span class="brand-name">STANLEY TECH<br><b>CONNECT</b></span></a>
-    <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
+  <header class="topbar is-home" id="siteHeader">
+    <a class="brand" href="#home" aria-label="Stanley Tech Connect home">
+      <img class="brand-logo" src="/assets/logo.png" alt="Stanley Tech Connect logo" width="40" height="40">
+      <span class="brand-name">Stanley<span class="brand-dot">.</span></span>
+    </a>
+    <button class="mobile-menu" id="mobileMenu" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <nav class="main-nav" id="mainNav">
       <a href="#home">Home</a><a href="#page/about">About</a><a href="#page/services">Services</a><a href="#page/portfolio">Portfolio</a><a href="#page/training">Training</a><a href="#page/contact">Contact</a>
     </nav>
-    <div class="top-actions"><button class="btn btn-quiet" id="openLogin">Client portal</button><a class="btn btn-primary" href="#contact">Start a project <span>↗</span></a></div>
+    <div class="top-actions">
+      <button class="hidden" id="openLogin" type="button" aria-label="Open client portal">Client portal</button>
+      <a class="btn btn-primary" href="#page/contact">Get Started</a>
+    </div>
   </header>
 
   <main id="publicSite">
     <section class="hero" id="home">
-      <div class="hero-slideshow" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-      <div class="hero-copy">
-        <div class="eyebrow"><i></i> Welcome to Stanley Tech Connect</div>
-        <h1>Connecting You to the <em>Future of Technology</em></h1>
-        <p>Web design, graphic design, computer training, IT consulting and student project support — all under one roof.</p>
-        <div class="hero-buttons"><a class="btn btn-primary btn-large" href="#page/services">Get Started <span>↗</span></a><a class="btn btn-outline btn-large" href="#page/contact">Contact Us <span>↗</span></a></div>
-        <div class="hero-proof"><div class="proof-avatars"><span>W</span><span>D</span><span>S</span></div><div><b>Ideas to implementation</b><small>One connected technology partner.</small></div></div>
+      <div class="hero-slideshow" aria-hidden="true">
+        <div class="hero-slide is-active"><img src="/assets/hero-1.jpg" alt="" fetchpriority="high"></div>
+        <div class="hero-slide"><img src="/assets/holographic-tech.png" alt="" loading="lazy"></div>
+        <div class="hero-slide"><img src="/assets/team-office.jpg" alt="" loading="lazy"></div>
+        <div class="hero-slide"><img src="/assets/hero-2.jpg" alt="" loading="lazy"></div>
+        <div class="hero-slide"><img src="/assets/training-lab.png" alt="" loading="lazy"></div>
+        <div class="hero-slide"><img src="/assets/hero-3.jpg" alt="" loading="lazy"></div>
+        <div class="hero-slide"><img src="/assets/hero-4.jpg" alt="" loading="lazy"></div>
       </div>
-      <div class="hero-visual" aria-label="Abstract STC digital network illustration">
-        <div class="visual-grid"></div><div class="visual-ring ring-one"></div><div class="visual-ring ring-two"></div>
-        <div class="visual-core"><span>STC</span><small>CONNECTING<br>POSSIBILITIES</small></div>
-        <div class="float-chip chip-one"><b>01</b> WEB & APPS</div><div class="float-chip chip-two"><b>02</b> DIGITAL SYSTEMS</div><div class="float-chip chip-three"><b>03</b> CREATIVE TECH</div>
-        <div class="visual-caption">DESIGN <span>•</span> BUILD <span>•</span> CONNECT</div>
+      <div class="hero-overlay" aria-hidden="true"></div>
+      <div class="hero-content">
+        <div class="hero-copy">
+          <span class="hero-welcome">Welcome to Stanley Tech Connect</span>
+          <h1>Connecting You to the <em>Future of Technology</em></h1>
+          <p>Web design, graphic design, computer training, IT consulting and student project support — all under one roof.</p>
+          <div class="hero-buttons">
+            <a class="btn btn-primary btn-large" href="#page/services">Get Started <span>↗</span></a>
+            <a class="btn btn-outline btn-large" href="#page/contact"><span aria-hidden="true">☎</span> Contact Us</a>
+          </div>
+        </div>
       </div>
-      <div class="hero-bottom"><span>INNOVATION WITH PURPOSE</span><span>SCROLL TO EXPLORE ↓</span></div>
+      <div class="hero-indicators" role="group" aria-label="Hero slides">
+        <button class="hero-indicator is-active" type="button" data-slide-to="0" aria-label="Show slide 1" aria-pressed="true"></button><button class="hero-indicator" type="button" data-slide-to="1" aria-label="Show slide 2" aria-pressed="false"></button><button class="hero-indicator" type="button" data-slide-to="2" aria-label="Show slide 3" aria-pressed="false"></button><button class="hero-indicator" type="button" data-slide-to="3" aria-label="Show slide 4" aria-pressed="false"></button><button class="hero-indicator" type="button" data-slide-to="4" aria-label="Show slide 5" aria-pressed="false"></button><button class="hero-indicator" type="button" data-slide-to="5" aria-label="Show slide 6" aria-pressed="false"></button><button class="hero-indicator" type="button" data-slide-to="6" aria-label="Show slide 7" aria-pressed="false"></button>
+      </div>
     </section>
 
     <section class="home-intro section">
@@ -52,6 +67,14 @@
     <section class="section services-section" id="services">
       <div class="section-head centered-head"><div><div class="eyebrow">WHAT WE OFFER</div><h2>Our Services</h2></div><p>Everything you need to build, learn and grow in tech — under one roof.</p></div>
       <div id="serviceGrid" class="service-grid"><div class="loading-card">Loading STC services…</div></div>
+    </section>
+    <section class="home-stats" aria-label="Stanley Tech Connect at a glance">
+      <div class="stats-grid">
+        <article><span class="stats-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><b><span class="counter" data-count="250" data-suffix="+">0</span></b><small>Happy Clients</small></article>
+        <article><span class="stats-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5zM8 11v5m4-5v5m4-5v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b><span class="counter" data-count="480" data-suffix="+">0</span></b><small>Projects Done</small></article>
+        <article><span class="stats-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5L2 9Zm4 2v5c3.5 3 8.5 3 12 0v-5M22 9v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b><span class="counter" data-count="1200" data-suffix="+">0</span></b><small>Students Trained</small></article>
+        <article><span class="stats-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m8.2 13-1 8 4.8-2.5 4.8 2.5-1-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><b><span class="counter" data-count="8" data-suffix="+">0</span></b><small>Years Experience</small></article>
+      </div>
     </section>
     <section class="section why-section"><div class="section-head centered-head"><div><div class="eyebrow">WHY US</div><h2>Why Choose Stanley Tech Connect?</h2></div><p>We combine experience, modern tools and personal care to deliver outcomes that last.</p></div>
       <div class="why-grid"><article><span>⚡</span><h3>Fast Delivery</h3><p>Quick turnarounds without cutting corners.</p></article><article><span>✓</span><h3>Trusted Quality</h3><p>Solutions you can rely on, every time.</p></article><article><span>♡</span><h3>Friendly Support</h3><p>We’re with you long after the project ends.</p></article><article><span>✧</span><h3>Modern Standards</h3><p>Latest tools, frameworks and best practices.</p></article></div>
@@ -73,7 +96,7 @@
     <div class="portal-main"><header class="portal-top"><div><small id="portalKicker">STC WORKSPACE</small><h1 id="portalTitle">Overview</h1></div><div class="portal-top-right"><span class="secure-pill">● Secure workspace</span><button class="icon-btn" id="refreshPortal" aria-label="Refresh">↻</button></div></header><div id="portalContent" class="portal-content"><div class="loading-card">Loading your workspace…</div></div></div>
   </section>
 
-  <footer class="site-footer" id="siteFooter"><div class="footer-top"><a class="brand" href="#home"><span class="brand-symbol">S<span>T</span>C</span><span class="brand-name">STANLEY TECH<br><b>CONNECT</b></span></a><p>Connecting You to the Future of Technology.<br>Empowering people and businesses with modern tech solutions.</p><a class="footer-cta" href="#page/contact">Start a conversation ↗</a></div><div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All rights reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span><button id="footerLogin">Client & staff login ↗</button></div></footer>
+  <footer class="site-footer" id="siteFooter"><div class="footer-top"><a class="brand footer-brand" href="#home"><img class="brand-logo" src="/assets/logo.png" alt="Stanley Tech Connect logo" width="40" height="40"><span class="brand-name">Stanley Tech Connect</span></a><p>Connecting You to the Future of Technology.<br>Empowering people and businesses with modern tech solutions.</p><a class="footer-cta" href="#page/contact">Start a conversation ↗</a></div><div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All rights reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span><button id="footerLogin">Client & staff login ↗</button></div></footer>
 
   <dialog id="loginDialog" class="login-dialog"><button class="dialog-close" id="closeLogin" aria-label="Close">×</button><div class="login-brand"><span class="brand-symbol">S<span>T</span>C</span><div class="eyebrow">STC SECURE WORKSPACE</div></div><h2 id="loginTitle">Welcome to your<br><em>STC workspace.</em></h2><p id="loginHint">Enter your email and we'll send you a secure six-digit sign-in code.</p><form id="requestCodeForm"><label>Email address<input id="loginEmail" type="email" required placeholder="you@example.com" autocomplete="email"></label><button class="btn btn-primary btn-large" type="submit">Send sign-in code ↗</button></form><form id="verifyCodeForm" class="hidden"><label>Six-digit code<input id="loginCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000" autocomplete="one-time-code"></label><button class="btn btn-primary btn-large" type="submit">Verify & continue ↗</button><button type="button" class="text-button" id="changeEmail">Use a different email</button></form><p id="loginStatus" class="form-status" aria-live="polite"></p><small class="login-foot">Your account is protected by email verification.</small></dialog>
 </body>

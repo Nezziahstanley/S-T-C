@@ -568,13 +568,13 @@ app.post("/api/admin/awards", requireStaff, async (req,res) => {
   if(!p?.full_name)return res.status(400).json({error:"Recipient profile name is missing."});
   if(!sig?.signature_key)return res.status(409).json({error:"Save the CEO electronic signature first."});
   const award_number="STC-AWD-"+new Date().getFullYear()+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
-  const {data,error}=await db.from("stc_awards").insert({user_id,award_title,award_type,description,award_number,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
+  const {data,error}=await db.from("stc_awards").insert({user_id,recipient_name:p.full_name,award_title,award_type,description,award_number,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
   if(error)return sendError(res,error,400);
   await db.from("stc_notifications").insert({user_id,title:"You have received an STC award",body:"Congratulations! "+award_title+" has been added to your STC credentials."});
   await audit(req.user,"issue_award","awards",data.id,{award_number});
   res.status(201).json({award:data,message:"Award issued successfully."});
 });
-app.get("/api/public/awards/:number", async (req,res)=>{ const number=clean(req.params.number); const {data,error}=await db.from("stc_awards").select("award_number,award_title,award_type,issued_at,status,signer_name,signer_title").eq("award_number",number).maybeSingle(); if(error)return sendError(res,error,500); if(!data||data.status!=="issued")return res.status(404).json({error:"No active STC award matches that number."}); res.json({award:data,verified:true}); });
+app.get("/api/public/awards/:number", async (req,res)=>{ const number=clean(req.params.number); const {data,error}=await db.from("stc_awards").select("award_number,award_title,award_type,recipient_name,issued_at,status,signer_name,signer_title").eq("award_number",number).maybeSingle(); if(error)return sendError(res,error,500); if(!data||data.status!=="issued")return res.status(404).json({error:"No active STC award matches that number."}); res.json({award:data,verified:true}); });
 app.get("/api/public/certificates/:number", async (req,res)=>{
   const number=clean(req.params.number);
   const {data,error}=await db.from("stc_certificates").select("certificate_number,recipient_name,programme,certificate_title,certificate_type,issued_at,status,signer_name,signer_title").eq("certificate_number",number).maybeSingle();

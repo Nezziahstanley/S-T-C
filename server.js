@@ -283,8 +283,7 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
   }
   res.status(201).json({
     message: "Your enquiry has reached Stanley Tech Connect. We'll be in touch.",
-    reference: data.id,
-    email_notification: Boolean(process.env.RESEND_API_KEY)
+    reference: data.id
   });
 });
 

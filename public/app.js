@@ -82,6 +82,7 @@ async function loadPublic() {
   window.stcServices = serviceItems;
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
+  if (typeof renderPageRoute === "function") renderPageRoute();
   if (typeof routePublicPage === "function") routePublicPage();
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   const postItems = posts.status === "fulfilled" ? posts.value.posts : [];

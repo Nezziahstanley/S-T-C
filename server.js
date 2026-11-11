@@ -97,7 +97,7 @@ async function requireStaff(req, res, next) {
 }
 
 const roleResources = {
-  manager: new Set(["enquiries", "projects", "quotes", "invoices", "payments", "tickets", "services", "posts", "portfolio", "media", "profiles", "enrollments"]),
+  manager: new Set(["enquiries", "projects", "quotes", "invoices", "payments", "tickets", "services", "posts", "portfolio", "media", "profiles", "enrollments", "certificates", "awards"]),
   project_manager: new Set(["enquiries", "projects", "tickets"]),
   finance: new Set(["quotes", "invoices", "payments"]),
   support: new Set(["enquiries", "tickets"]),
@@ -188,7 +188,7 @@ app.get("/api/public/posts", async (_req, res) => {
   if (error) return sendError(res, error, 500);
   res.json({ posts: data || [] });
 });
-app.get("/api/public/media", async (_req, res) => {
+app.get("/api/public/graduates", async (_req, res) => {\n  const { data, error } = await db.from("stc_media").select("id,title,description,storage_key,created_at").eq("category", "Graduating Students").eq("is_published", true).order("created_at", { ascending: false }).limit(60);\n  if (error) return sendError(res, error, 500);\n  res.json({ photos: (data || []).map(item => ({ ...item, url: db.storage.from("stc-media").getPublicUrl(item.storage_key).data.publicUrl })) });\n});\napp.get("/api/public/media", async (_req, res) => {
   const { data, error } = await db.from("stc_media")
     .select("id,title,description,category,media_type,storage_key,is_featured")
     .eq("is_published", true).order("is_featured", { ascending: false });
@@ -288,11 +288,11 @@ app.get("/api/client/dashboard", requireUser, async (req, res) => {
   ]);
   const error = results.find(item => item.error)?.error;
   if (error) return sendError(res, error, 500);
-  const [profile, projects, quotes, invoices, payments, tickets, notifications, enrollments] = results;
+  const [profile, projects, quotes, invoices, payments, tickets, notifications, enrollments] = results;\n  const [certificates, awards] = await Promise.all([\n    db.from("stc_certificates").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),\n    db.from("stc_awards").select("*").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false })\n  ]);\n  if (certificates.error || awards.error) return sendError(res, certificates.error || awards.error, 500);\n  const avatarUrl = profile.data?.avatar_key ? (await db.storage.from("stc-private-files").createSignedUrl(profile.data.avatar_key, 600)).data?.signedUrl || null : null;\n  const signedCertificates = await Promise.all((certificates.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));\n  const signedAwards = await Promise.all((awards.data || []).map(async item => ({ ...item, signature_url: item.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(item.signature_key, 600)).data?.signedUrl || null : null })));
   res.json({
     profile: profile.data || {}, projects: projects.data || [], quotes: quotes.data || [],
     invoices: invoices.data || [], payments: payments.data || [],
-    tickets: tickets.data || [], notifications: notifications.data || [], enrollments: enrollments.data || []
+    tickets: tickets.data || [], notifications: notifications.data || [], enrollments: enrollments.data || [],\n    certificates: signedCertificates, awards: signedAwards, avatar_url: avatarUrl
   });
 });
 app.patch("/api/client/profile", requireUser, async (req, res) => {
@@ -441,11 +441,140 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
   });
 });
 
-const adminTables = {
+
+// Account security, private profile photos and credentials
+app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
+  const email = clean(req.body?.email).toLowerCase();
+  if (!validEmail(email)) return res.status(400).json({ error: "Enter the email address on your STC account." });
+  const redirectTo = (STC_PUBLIC_URL || "").replace(/\/$/, "") + "/?password-reset=1";
+  const { error } = await authClient.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) return sendError(res, error, 400);
+  res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });
+});
+app.post("/api/auth/password/update", requireUser, authLimiter, async (req, res) => {
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (password.length < 10 || password.length > 128) return res.status(400).json({ error: "Use a password between 10 and 128 characters." });
+  const token = (req.headers.authorization || "").slice(7);
+  const userClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: "Bearer " + token } }
+  });
+  const { error } = await userClient.auth.updateUser({ password });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "change_password", "auth_user", req.user.id, {});
+  res.json({ message: "Your password has been updated. Keep it somewhere secure." });
+});
+app.post("/api/account/avatar", requireUser, async (req, res) => {
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!["image/jpeg","image/png","image/webp"].includes(contentType) || !base64) return res.status(400).json({ error: "Choose a JPG, PNG or WEBP profile photo." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(400).json({ error: "Profile photos must be smaller than 3 MB." });
+  const ext = contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1];
+  const key = "avatars/" + req.user.id + "/" + crypto.randomUUID() + "." + ext;
+  const { error: uploadError } = await db.storage.from("stc-private-files").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data: old } = await db.from("stc_profiles").select("avatar_key").eq("user_id", req.user.id).maybeSingle();
+  const { error } = await db.from("stc_profiles").upsert({ user_id: req.user.id, avatar_key: key, profile_updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  if (error) { await db.storage.from("stc-private-files").remove([key]); return sendError(res, error, 400); }
+  if (old?.avatar_key) await db.storage.from("stc-private-files").remove([old.avatar_key]);
+  const signed = await db.storage.from("stc-private-files").createSignedUrl(key, 600);
+  await audit(req.user, "update_profile_photo", "profiles", req.user.id, {});
+  res.json({ message: "Profile photo updated.", avatar_url: signed.data?.signedUrl || null });
+});
+app.get("/api/account/avatar", requireUser, async (req, res) => {
+  const { data, error } = await db.from("stc_profiles").select("avatar_key").eq("user_id", req.user.id).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  if (!data?.avatar_key) return res.status(404).json({ error: "No profile photo has been uploaded." });
+  const signed = await db.storage.from("stc-private-files").createSignedUrl(data.avatar_key, 600);
+  if (signed.error) return sendError(res, signed.error, 500);
+  res.json({ url: signed.data.signedUrl, expires_in: 600 });
+});
+
+// CEO electronic signature and issuance workflow
+app.get("/api/admin/signature", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage the official signature." });
+  const { data, error } = await db.from("stc_brand_signatures").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  const signature_url = data?.signature_key ? (await db.storage.from("stc-private-files").createSignedUrl(data.signature_key,600)).data?.signedUrl || null : null;
+  res.json({ signature: data || {}, signature_url });
+});
+app.put("/api/admin/signature", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can sign official STC documents." });
+  const signer_name = clean(req.body?.signer_name), signer_title = clean(req.body?.signer_title);
+  if (!signer_name || signer_name.length > 120 || !signer_title || signer_title.length > 120) return res.status(400).json({ error: "Enter the signatory name and title." });
+  const { data, error } = await db.from("stc_brand_signatures").upsert({ id:1, signer_name, signer_title, updated_by:req.user.id, updated_at:new Date().toISOString() }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res,error,400);
+  await audit(req.user,"update_signatory","brand_signatures",1,{signer_name,signer_title});
+  res.json({ signature:data, message:"Signatory details saved." });
+});
+app.post("/api/admin/signature/upload", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can upload the official signature." });
+  const base64=clean(req.body?.base64);
+  if (!base64.startsWith("data:image/png;base64,")) return res.status(400).json({ error: "Upload a PNG signature image." });
+  const bytes=Buffer.from(base64.replace(/^data:image\/png;base64,/,""),"base64");
+  if (!bytes.length || bytes.length>1024*1024) return res.status(400).json({ error:"Signature image must be smaller than 1 MB." });
+  const key="signatures/stc-ceo-"+crypto.randomUUID()+".png";
+  const { error:uploadError }=await db.storage.from("stc-private-files").upload(key,bytes,{contentType:"image/png",upsert:false});
+  if(uploadError)return sendError(res,uploadError,400);
+  const { data:existing }=await db.from("stc_brand_signatures").select("signature_key").eq("id",1).maybeSingle();
+  const { data, error }=await db.from("stc_brand_signatures").upsert({id:1,signer_name:clean(req.body?.signer_name),signer_title:clean(req.body?.signer_title),signature_key:key,updated_by:req.user.id,updated_at:new Date().toISOString()},{onConflict:"id"}).select("*").single();
+  if(error){await db.storage.from("stc-private-files").remove([key]);return sendError(res,error,400);}
+  if(existing?.signature_key) await db.storage.from("stc-private-files").remove([existing.signature_key]);
+  await audit(req.user,"upload_electronic_signature","brand_signatures",1,{});
+  res.json({message:"Electronic signature saved.",signature:data});
+});
+app.post("/api/admin/certificates", requireStaff, async (req,res) => {
+  if(req.staffRole!=="super_admin") return res.status(403).json({error:"Only the CEO administrator can issue signed certificates."});
+  const user_id=clean(req.body?.user_id), certificate_type=["course","service"].includes(req.body?.certificate_type)?req.body.certificate_type:"course";
+  const certificate_title=clean(req.body?.certificate_title)|| (certificate_type==="service"?"Certificate of Service":"Certificate of Completion");
+  const programme=clean(req.body?.programme), description=clean(req.body?.description), grade=clean(req.body?.grade);
+  const enrollment_id=req.body?.enrollment_id?Number(req.body.enrollment_id):null;
+  if(!user_id||!programme||programme.length>180||certificate_title.length>160) return res.status(400).json({error:"Select the recipient and enter the course or service."});
+  let recipient_name=clean(req.body?.recipient_name);
+  if(!recipient_name){const {data:p}=await db.from("stc_profiles").select("full_name").eq("user_id",user_id).maybeSingle();recipient_name=p?.full_name||"";}
+  if(!recipient_name)return res.status(400).json({error:"Recipient profile name is missing."});
+  if(certificate_type==="course"){
+    if(!enrollment_id)return res.status(400).json({error:"Select a completed course enrolment before issuing its certificate."});
+    const {data:e}=await db.from("stc_training_enrollments").select("id,user_id,status,course_name").eq("id",enrollment_id).eq("user_id",user_id).maybeSingle();
+    if(!e||e.status!=="completed")return res.status(409).json({error:"Course certificates can only be issued for completed enrolments."});
+  }
+  const {data:sig}=await db.from("stc_brand_signatures").select("signer_name,signer_title,signature_key").eq("id",1).maybeSingle();
+  if(!sig?.signature_key||!sig.signer_name||!sig.signer_title)return res.status(409).json({error:"Save the CEO electronic signature and signatory details first."});
+  const certificate_number="STC-CERT-"+new Date().getFullYear()+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
+  const {data,error}=await db.from("stc_certificates").insert({user_id,enrollment_id,certificate_number,recipient_name,programme,certificate_title,description,grade,certificate_type,service_name:certificate_type==="service"?programme:null,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
+  if(error)return sendError(res,error,400);
+  await db.from("stc_notifications").insert({user_id,title:"A new STC certificate is ready",body:"Your "+programme+" certificate "+certificate_number+" is now available in your STC workspace."});
+  await audit(req.user,"issue_certificate","certificates",data.id,{certificate_number,certificate_type});
+  res.status(201).json({certificate:data,message:"Certificate issued successfully."});
+});
+app.post("/api/admin/awards", requireStaff, async (req,res) => {
+  if(req.staffRole!=="super_admin")return res.status(403).json({error:"Only the CEO administrator can issue official awards."});
+  const user_id=clean(req.body?.user_id), award_title=clean(req.body?.award_title), award_type=clean(req.body?.award_type)||"Achievement", description=clean(req.body?.description);
+  if(!user_id||!award_title||award_title.length>180||award_type.length>100)return res.status(400).json({error:"Select a recipient and enter an award title."});
+  const {data:p}=await db.from("stc_profiles").select("full_name").eq("user_id",user_id).maybeSingle();
+  const {data:sig}=await db.from("stc_brand_signatures").select("signer_name,signer_title,signature_key").eq("id",1).maybeSingle();
+  if(!p?.full_name)return res.status(400).json({error:"Recipient profile name is missing."});
+  if(!sig?.signature_key)return res.status(409).json({error:"Save the CEO electronic signature first."});
+  const award_number="STC-AWD-"+new Date().getFullYear()+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
+  const {data,error}=await db.from("stc_awards").insert({user_id,award_title,award_type,description,award_number,signer_name:sig.signer_name,signer_title:sig.signer_title,signature_key:sig.signature_key,created_by:req.user.id,status:"issued"}).select("*").single();
+  if(error)return sendError(res,error,400);
+  await db.from("stc_notifications").insert({user_id,title:"You have received an STC award",body:"Congratulations! "+award_title+" has been added to your STC credentials."});
+  await audit(req.user,"issue_award","awards",data.id,{award_number});
+  res.status(201).json({award:data,message:"Award issued successfully."});
+});
+app.get("/api/public/certificates/:number", async (req,res)=>{
+  const number=clean(req.params.number);
+  const {data,error}=await db.from("stc_certificates").select("certificate_number,recipient_name,programme,certificate_title,certificate_type,issued_at,status,signer_name,signer_title").eq("certificate_number",number).maybeSingle();
+  if(error)return sendError(res,error,500);
+  if(!data||data.status!=="issued")return res.status(404).json({error:"No active STC certificate matches that number."});
+  res.json({certificate:data,verified:true});
+});
+\nconst adminTables = {
   enrollments: "stc_training_enrollments", enquiries: "stc_enquiries", projects: "stc_projects", quotes: "stc_quotes",
   invoices: "stc_invoices", payments: "stc_payments", tickets: "stc_tickets",
   services: "stc_services", posts: "stc_posts", portfolio: "stc_portfolio",
-  media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles"
+  media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles",\n  certificates: "stc_certificates", awards: "stc_awards"
 };
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
@@ -458,7 +587,7 @@ app.get("/api/admin/:resource", requireStaff, async (req, res) => {
 app.post("/api/admin/:resource", requireStaff, async (req, res) => {
   const resource = req.params.resource;
   const table = adminTables[resource];
-  if (!table || ["enquiries", "payments", "profiles", "media"].includes(resource)) {
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
     return res.status(403).json({ error: "This resource cannot be created here." });
   }
   if (resource === "staff") {

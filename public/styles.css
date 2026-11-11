@@ -418,3 +418,26 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 @media(max-width:760px){.topbar{min-height:68px;padding:10px 18px}.topbar .mobile-menu{display:block}.topbar .main-nav{display:none;position:absolute;top:100%;left:0;right:0;padding:18px 22px;background:rgba(255,255,255,.97);border-bottom:1px solid #e3ebf5;box-shadow:0 15px 30px rgba(12,35,72,.1);flex-direction:column;align-items:stretch;gap:4px}.topbar.is-home:not(.scrolled) .main-nav{background:rgba(7,20,44,.97);border-color:rgba(255,255,255,.15)}.topbar .main-nav.open{display:flex}.topbar .main-nav a{padding:13px 14px}.topbar .top-actions .btn-primary{padding:10px 13px;font-size:13px}.topbar .brand-name{display:none}.hero{min-height:760px;padding:120px 22px 100px}.hero-copy h1{font-size:clamp(2.7rem,12vw,4.2rem)}.hero-copy>p{font-size:1.03rem}.hero-indicators{bottom:28px}.hero-buttons{gap:10px}.hero .btn{min-height:46px;padding:13px 17px}}
 @media(max-width:480px){.topbar .top-actions .btn-primary{padding:10px 12px}.hero{min-height:760px}.hero-buttons .btn{width:100%}.hero-indicators{bottom:22px}}
 @media(prefers-reduced-motion:reduce){.hero-slide,.hero-indicator{transition:none}.hero-slide.is-active img,.hero-welcome,.hero-copy h1,.hero-copy>p,.hero-buttons{animation:none!important}.hero-indicator{width:8px}.hero-indicator.is-active{width:40px}}
+
+
+/* Lovable-style STC footer and testimonial details */
+.site-footer{margin-top:0;padding:68px clamp(20px,7vw,100px) 22px;background:linear-gradient(135deg,#071a3a,#0b2346);color:#fff}
+.footer-grid{display:grid;grid-template-columns:1.25fr .8fr .9fr 1.35fr;gap:clamp(24px,4vw,56px);max-width:1320px;margin:0 auto}
+.footer-about .footer-brand{display:flex;align-items:center;gap:11px;margin-bottom:17px}
+.footer-about>p{max-width:320px;color:rgba(255,255,255,.68);font-size:13px;line-height:1.8}
+.footer-grid h3{margin:0 0 17px;color:#8de5ff;font-size:14px;font-weight:800}
+.footer-grid ul{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+.footer-grid li,.footer-grid li a{color:rgba(255,255,255,.7);font-size:13px;line-height:1.65}
+.footer-grid li a:hover,.footer-socials a:hover{color:#8de5ff}
+.footer-socials{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.footer-socials a{display:inline-flex;padding:8px 12px;border:1px solid rgba(255,255,255,.18);border-radius:9px;color:#dceeff;font-size:12px;font-weight:700}
+.footer-contact li{display:flex;align-items:flex-start;gap:10px}
+.footer-contact li>span:first-child{width:20px;flex:0 0 20px;color:#8de5ff}
+.footer-contact li b{display:block;margin-bottom:3px;color:#8de5ff;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.site-footer .footer-bottom{max-width:1320px;margin:48px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:space-between;gap:18px;color:rgba(255,255,255,.52);font-size:12px}
+.site-footer .footer-bottom button{border:0;background:transparent;color:#8de5ff;font-size:12px;font-weight:700}
+.testimonials-grid .testimonial-person{display:flex;align-items:center;gap:12px}
+.testimonials-grid .testimonial-person b{font-size:13px;color:#10234b}
+.testimonials-grid .testimonial-person small{margin-top:3px;font-size:12px;color:#64748b}
+@media(max-width:1000px){.footer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.site-footer{padding:54px 22px 22px}.footer-grid{grid-template-columns:1fr;gap:30px}.site-footer .footer-bottom{align-items:flex-start;flex-direction:column;margin-top:34px}.footer-about>p{max-width:none}}

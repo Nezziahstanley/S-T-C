@@ -429,30 +429,28 @@ app.get("/api/client/payments/verify", requireUser, async (req, res) => {
 
 // CEO and staff workspace
 app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
-  if (!["super_admin", "manager"].includes(req.staffRole)) {
-    return res.status(403).json({ error: "Your staff role does not have access to the management overview." });
-  }
+  if (!["super_admin", "manager"].includes(req.staffRole)) return res.status(403).json({ error: "Your staff role does not have access to the management overview." });
   const results = await Promise.all([
     db.from("stc_enquiries").select("id", { count: "exact", head: true }),
     db.from("stc_projects").select("id", { count: "exact", head: true }),
     db.from("stc_invoices").select("id", { count: "exact", head: true }),
     db.from("stc_tickets").select("id", { count: "exact", head: true }),
     db.from("stc_payments").select("id", { count: "exact", head: true }),
+    db.from("stc_profiles").select("id", { count: "exact", head: true }).eq("account_type","student"),
+    db.from("stc_training_enrollments").select("id", { count: "exact", head: true }),
+    db.from("stc_certificates").select("id", { count: "exact", head: true }).eq("status","issued"),
+    db.from("stc_awards").select("id", { count: "exact", head: true }).eq("status","issued"),
     db.from("stc_enquiries").select("*").order("created_at", { ascending: false }).limit(8),
     db.from("stc_projects").select("*").order("created_at", { ascending: false }).limit(8),
     db.from("stc_tickets").select("*").order("created_at", { ascending: false }).limit(8)
   ]);
   const error = results.find(item => item.error)?.error;
   if (error) return sendError(res, error, 500);
-  res.json({
-    role: req.staffRole,
-    metrics: {
-      enquiries: results[0].count || 0, projects: results[1].count || 0,
-      invoices: results[2].count || 0, tickets: results[3].count || 0,
-      payments: results[4].count || 0
-    },
-    enquiries: results[5].data || [], projects: results[6].data || [], tickets: results[7].data || []
-  });
+  res.json({ role:req.staffRole, metrics:{
+    enquiries:results[0].count||0,projects:results[1].count||0,invoices:results[2].count||0,
+    tickets:results[3].count||0,payments:results[4].count||0,students:results[5].count||0,
+    training_applications:results[6].count||0,certificates_issued:results[7].count||0,awards_issued:results[8].count||0
+  }, enquiries:results[9].data||[],projects:results[10].data||[],tickets:results[11].data||[] });
 });
 
 

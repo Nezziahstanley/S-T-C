@@ -750,3 +750,17 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 @media(max-width:650px){.stc-services-intro,.stc-services-why,.stc-services-faq{grid-template-columns:1fr;gap:20px}.stc-services-grid{grid-template-columns:1fr;gap:16px}.stc-service-image{height:190px}.stc-service-card p{min-height:0}.stc-services-process-grid{grid-template-columns:1fr}.stc-services-benefits{grid-template-columns:1fr 1fr}.stc-services-faq{gap:12px}.stc-services-toolbar{align-items:stretch}.stc-service-search{width:100%}}
 @media(max-width:420px){.stc-services-benefits{grid-template-columns:1fr}.stc-service-card-body{padding:18px}}
 @media(prefers-reduced-motion:reduce){.stc-service-card,.stc-service-image img,.stc-service-link span{transition:none}}
+
+.stc-portfolio-intro,.stc-contact-intro{display:grid;grid-template-columns:1fr 1fr;gap:35px;align-items:center;margin:0 0 30px}
+.stc-portfolio-intro h2,.stc-contact-intro h2,.stc-training-hero h2{font-size:clamp(2rem,4vw,3rem);line-height:1.12;color:#10234b;font-weight:850;margin:10px 0}
+.stc-portfolio-intro h2 em,.stc-contact-intro h2 em,.stc-training-hero h2 em{font-style:normal;background:linear-gradient(110deg,#1769e0,#00b8e8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stc-portfolio-intro p,.stc-contact-intro p,.stc-training-hero p{color:#64748b;font-size:14px;line-height:1.85}
+.stc-portfolio-search{display:block;max-width:300px;margin:0 auto 22px;padding:11px 16px;border:1px solid #dce5f0;border-radius:999px;background:#fff}
+.stc-portfolio-search input{width:90%;border:0;outline:0;color:#10234b;background:transparent}
+.portfolio-tile{background-size:cover!important;background-position:center!important}
+.stc-training-hero{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;padding:22px;margin-bottom:45px;border:1px solid #e2eaf3;border-radius:22px;background:#fff}
+.stc-training-hero img,.stc-contact-intro img{width:100%;height:280px;object-fit:cover;border-radius:16px}
+.stc-training-benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0}
+.stc-training-benefit-grid article{padding:20px;border:1px solid #e2eaf3;border-radius:16px;background:#fff}
+.stc-training-benefit-grid b{color:#1769e0}.stc-training-benefit-grid h3{margin:8px 0;color:#10234b}.stc-training-benefit-grid p{font-size:13px;line-height:1.7;color:#64748b}
+@media(max-width:700px){.stc-portfolio-intro,.stc-contact-intro,.stc-training-hero{grid-template-columns:1fr;gap:18px}.stc-training-benefit-grid{grid-template-columns:1fr}.stc-training-hero img,.stc-contact-intro img{height:210px}}

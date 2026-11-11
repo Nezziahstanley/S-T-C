@@ -97,7 +97,7 @@ async function requireStaff(req, res, next) {
 }
 
 const roleResources = {
-  manager: new Set(["enquiries", "projects", "quotes", "invoices", "payments", "tickets", "services", "posts", "portfolio", "media"]),
+  manager: new Set(["enquiries", "projects", "quotes", "invoices", "payments", "tickets", "services", "posts", "portfolio", "media", "profiles", "enrollments"]),
   project_manager: new Set(["enquiries", "projects", "tickets"]),
   finance: new Set(["quotes", "invoices", "payments"]),
   support: new Set(["enquiries", "tickets"]),
@@ -261,7 +261,7 @@ app.post("/api/auth/verify-code", authLimiter, async (req, res) => {
 });
 app.get("/api/auth/me", requireUser, async (req, res) => {
   const { data: profile } = await db.from("stc_profiles")
-    .select("full_name,phone,company").eq("user_id", req.user.id).maybeSingle();
+    .select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", req.user.id).maybeSingle();
   const email = clean(req.user.email).toLowerCase();
   const isAdmin = Boolean(adminEmail && email === adminEmail);
   const { data: staff } = await db.from("stc_staff_roles")
@@ -281,17 +281,18 @@ app.get("/api/client/dashboard", requireUser, async (req, res) => {
     db.from("stc_projects").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_quotes").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_invoices").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
-    db.from("stc_payments").select("id,invoice_id,reference,amount,currency,method,status,created_at").eq("client_user_id", uid).order("created_at", { ascending: false }),
+    db.from("stc_payments").select("id,invoice_id,reference,amount,currency,method,status,transaction_reference,receipt_submitted_at,rejection_reason,created_at").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_tickets").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
-    db.from("stc_notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(30)
+    db.from("stc_notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(30),
+    db.from("stc_training_enrollments").select("*").eq("user_id", uid).order("created_at", { ascending: false })
   ]);
   const error = results.find(item => item.error)?.error;
   if (error) return sendError(res, error, 500);
-  const [profile, projects, quotes, invoices, payments, tickets, notifications] = results;
+  const [profile, projects, quotes, invoices, payments, tickets, notifications, enrollments] = results;
   res.json({
     profile: profile.data || {}, projects: projects.data || [], quotes: quotes.data || [],
     invoices: invoices.data || [], payments: payments.data || [],
-    tickets: tickets.data || [], notifications: notifications.data || []
+    tickets: tickets.data || [], notifications: notifications.data || [], enrollments: enrollments.data || []
   });
 });
 app.patch("/api/client/profile", requireUser, async (req, res) => {
@@ -508,7 +509,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   }
   if (!staffCan(req, resource)) return res.status(403).json({ error: "Your staff role cannot edit this section." });
   const editable = {
-    enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
     quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
     invoices: ["description", "amount", "currency", "status", "due_date"],
     tickets: ["status", "priority"],
@@ -665,7 +666,7 @@ app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res)
   const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
   const amount = Number(req.body?.amount);
-  const outstanding = Math.max(0, Number(invoice.amount) - Number(req.body?.already_paid || 0));
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");\n  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);\n  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
   if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
     return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
   }

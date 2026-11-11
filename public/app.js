@@ -218,6 +218,17 @@ function initSTCStockVideos() {
   videos.forEach(video => observer.observe(video));
 }
 initSTCAnnouncementControls();
+async function refreshSTCAnnouncements() {
+  if (document.visibilityState !== "visible") return;
+  try {
+    const result = await api("/api/public/posts");
+    window.stcPosts = result.posts || [];
+    renderSTCAnnouncements(window.stcPosts);
+  } catch (error) { /* Keep the last successfully loaded announcements visible. */ }
+}
+window.setInterval(refreshSTCAnnouncements, 60000);
+document.addEventListener("visibilitychange", refreshSTCAnnouncements);
+
 initSTCStockVideos();
 
 async function loadPublic() {

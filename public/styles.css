@@ -927,3 +927,21 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
  .stc-service-detail-features{padding:19px}
 }
 @media(prefers-reduced-motion:reduce){.stc-service-detail-content,.stc-service-outcomes{scroll-behavior:auto}}
+
+/* Image-led service detail hero */
+.stc-service-detail-art{
+  min-height:390px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:28px;
+  background-image:linear-gradient(180deg,rgba(5,19,38,.02) 8%,rgba(5,19,38,.82) 100%),var(--service-image);
+  background-size:cover;
+  background-position:center;
+  box-shadow:0 24px 70px rgba(5,19,38,.22);
+}
+.stc-service-detail-art::before{content:"";position:absolute;inset:14px;border:1px solid rgba(255,255,255,.32);border-radius:18px;pointer-events:none}
+.stc-service-image-caption{position:absolute;inset:auto 34px 34px;display:grid;gap:10px;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+.stc-service-image-caption span{font-size:.68rem;font-weight:800;letter-spacing:.2em;color:#a9eaff}
+.stc-service-image-caption b{font:800 clamp(1.7rem,3vw,2.6rem)/1.08 Manrope;letter-spacing:-.04em}
+.stc-service-image-caption small{font-size:.68rem;letter-spacing:.18em;color:rgba(255,255,255,.82)}
+@media(max-width:760px){.stc-service-detail-art{min-height:260px;border-radius:18px}.stc-service-image-caption{inset:auto 24px 25px}.stc-service-detail-art::before{inset:9px}}

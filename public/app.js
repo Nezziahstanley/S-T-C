@@ -25,6 +25,9 @@ function showPortal(show) {
 function openLogin() { $("#loginDialog").showModal(); }
 function closeLogin() { $("#loginDialog").close(); }
 $("#openLogin").addEventListener("click", openLogin);
+$("#passwordResetForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget;if(form.elements.password.value!==form.elements.confirm_password.value){toast("The passwords do not match.",true);return;}try{const r=await api("/api/auth/password/update",{method:"POST",body:JSON.stringify({password:form.elements.password.value})});toast(r.message);$("#passwordResetDialog").close();history.replaceState({},"",location.pathname);await enterPortal();}catch(err){toast(err.message,true);}});
+$("#cancelPasswordReset").addEventListener("click",()=>{$("#passwordResetDialog").close();});
+
 $("#footerLogin").addEventListener("click", openLogin);
 $("#closeLogin").addEventListener("click", closeLogin);
 $("#mobileMenu").addEventListener("click", () => {
@@ -534,6 +537,11 @@ $("#logoutBtn").addEventListener("click",()=>{sessionStorage.removeItem("stc_tok
 $("#refreshPortal").addEventListener("click",()=>selectTab(state.currentTab));
 (async()=>{
   await loadPublic();
+  const hashParams=new URLSearchParams(location.hash.replace(/^#/,""));
+  if(hashParams.get("type")==="recovery"&&hashParams.get("access_token")){
+    state.token=hashParams.get("access_token");sessionStorage.setItem("stc_token",state.token);
+    $("#passwordResetDialog").showModal();
+  }
   const payment = new URLSearchParams(location.search).get("payment");
   const reference = new URLSearchParams(location.search).get("reference");
   if (state.token) {
@@ -666,6 +674,11 @@ function renderPageRoute(){
  contact:()=>head("CONTACT","Let’s talk about your project","Reach out via the form, WhatsApp, phone or email — we typically respond within hours.")+
  block('<div class="stc-contact-intro"><div><span class="eyebrow">WE’RE HERE TO HELP</span><h2>Let’s make your<br><em>next idea happen.</em></h2><p>Have a question, a project idea or need help choosing the right service? Our team is happy to assist.</p></div><img src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=85" alt="Team collaborating on a project" loading="lazy"></div><div class="contact-layout"><div class="contact-details"><a class="contact-info-card" href="tel:+2347041145338"><span>☎</span><div><small>CALL US</small><b>07041145338</b></div></a><a class="contact-info-card" href="mailto:stanleytechconnect@gmail.com"><span>✉</span><div><small>EMAIL</small><b>stanleytechconnect@gmail.com</b></div></a><div class="contact-info-card"><span>⌖</span><div><small>HEAD OFFICE</small><b>No. 17 Hon. Dr. Alex Egbona Road, Agbara Ekureku, Abi Local Government Area, Cross River State</b></div></div><div class="contact-info-card"><span>⌖</span><div><small>BRANCH OFFICE</small><b>John Ifere Street, Ntankpo Close, Federal Polytechnic Ugep, Cross River State</b></div></div><a class="whatsapp-card" href="https://wa.me/2347041145338" target="_blank">◉ <span><b>Chat on WhatsApp</b><small>Fastest way to reach us</small></span></a><div class="social-card"><b>Follow Us</b><div><a href="https://www.instagram.com/stanleytechconnect" target="_blank">Instagram</a><a href="mailto:stanleytechconnect@gmail.com">Email</a></div></div></div><form id="stcContactRouteForm" class="route-form"><h2>Send us a message</h2><p>All fields marked with * are required.</p><div class="form-grid"><label>Full Name *<input name="name" required placeholder="Your name"></label><label>Email *<input name="email" type="email" required placeholder="you@example.com"></label></div><div class="form-grid"><label>Phone *<input name="phone" type="tel" required placeholder="08012345678"></label><label>Subject *<input name="subject" required placeholder="What is it about?"></label></div><label>Message *<textarea name="message" required minlength="5" rows="5" placeholder="Tell us a bit about your needs..."></textarea></label><button class="btn btn-primary btn-large" type="submit">Send Message ↗</button><p class="form-note">Your message will open in WhatsApp and your email app for delivery.</p><p id="contactRouteStatus" class="form-status"></p></form></div>')+
  '<section class="route-section map-section"><iframe title="Our location — Cross River State" src="https://www.google.com/maps?q=Federal+Polytechnic+Ugep+Cross+River+State+Nigeria&output=embed" width="100%" height="400" loading="lazy"></iframe></section>'
+ };
+ pages.graduates=()=>{
+  const photos=window.stcGraduateGallery||[];
+  const cards=photos.map(p=>'<figure class="graduate-photo-card"><img src="'+esc(p.url)+'" alt="'+esc(p.title)+'" loading="lazy"><figcaption><b>'+esc(p.title)+'</b><span>'+esc(p.description||"Stanley Tech Connect graduate")+'</span></figcaption></figure>').join("");
+  return head("STC COMMUNITY","Celebrating our graduates","A gallery of learners, achievements, graduation days and milestones from the Stanley Tech Connect community.")+block('<div class="graduate-gallery-grid">'+(cards||'<div class="empty-state">Graduation photos will appear here as STC publishes them.</div>')+'</div>')+action("Your journey starts here","Learn practical skills, build real projects and celebrate your own milestone with STC.","Explore our training programmes");
  };
  if(!pages[page]){location.hash="#page/services";return;}
  $("#publicSite").classList.add("hidden");$("#pageView").classList.remove("hidden");

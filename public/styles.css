@@ -764,3 +764,35 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 .stc-training-benefit-grid article{padding:20px;border:1px solid #e2eaf3;border-radius:16px;background:#fff}
 .stc-training-benefit-grid b{color:#1769e0}.stc-training-benefit-grid h3{margin:8px 0;color:#10234b}.stc-training-benefit-grid p{font-size:13px;line-height:1.7;color:#64748b}
 @media(max-width:700px){.stc-portfolio-intro,.stc-contact-intro,.stc-training-hero{grid-template-columns:1fr;gap:18px}.stc-training-benefit-grid{grid-template-columns:1fr}.stc-training-hero img,.stc-contact-intro img{height:210px}}
+
+
+/* STC motion system: lightweight scroll reveals and accessible hover motion */
+.stc-reveal{
+  opacity:0;
+  transform:translate3d(0,24px,0);
+  transition:opacity .72s cubic-bezier(.2,.7,.2,1),transform .72s cubic-bezier(.2,.7,.2,1);
+  transition-delay:var(--stc-reveal-delay,0ms);
+  will-change:opacity,transform;
+}
+.stc-reveal-visible{opacity:1;transform:translate3d(0,0,0)}
+#publicSite .service-card,#publicSite .why-grid article,#publicSite .testimonials-grid article,
+#publicSite .stc-service-card,#publicSite .portfolio-tile,#publicSite .stc-training-benefit-grid article{
+  transition:transform .35s ease,box-shadow .35s ease,border-color .35s ease;
+}
+#publicSite .service-card:hover,#publicSite .why-grid article:hover,
+#publicSite .testimonials-grid article:hover,#publicSite .stc-training-benefit-grid article:hover{
+  transform:translateY(-5px);
+}
+#publicSite .portfolio-tile:hover{transform:translateY(-5px) scale(1.01)}
+#publicSite .section-head h2{ text-wrap:balance }
+#publicSite .home-intro-art .intro-art-block{animation:stc-float 7s ease-in-out infinite}
+#publicSite .home-intro-art .intro-art-block:nth-child(2){animation-delay:-2s}
+#publicSite .home-intro-art .intro-art-block:nth-child(3){animation-delay:-4s}
+@keyframes stc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@media(prefers-reduced-motion:reduce){
+  .stc-reveal,.stc-reveal-visible,#publicSite .service-card,#publicSite .why-grid article,
+  #publicSite .testimonials-grid article,#publicSite .stc-service-card,#publicSite .portfolio-tile,
+  #publicSite .stc-training-benefit-grid article,#publicSite .home-intro-art .intro-art-block{
+    opacity:1;transform:none;animation:none;transition:none;will-change:auto
+  }
+}

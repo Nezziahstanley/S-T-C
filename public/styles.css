@@ -862,3 +862,19 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 @media(max-width:600px){.graduate-gallery-grid{grid-template-columns:1fr}.graduate-photo-card img{height:240px}.student-id-preview{padding:18px}.student-id-preview img,.student-id-preview .photo-placeholder{width:86px;height:108px}.credential-item{align-items:flex-start;flex-direction:column}#avatarForm{align-items:stretch;flex-direction:column}}
 
 .user-avatar{background-size:cover;background-position:center;background-repeat:no-repeat}
+
+
+/* STC office map controls and login brand mark */
+.login-brand-logo{width:58px;height:58px;object-fit:contain;display:block;flex:0 0 58px;border-radius:12px}
+.login-brand .eyebrow{line-height:1.55}
+.stc-map-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;max-width:1250px;margin:0 auto 22px}
+.stc-map-heading h2{font:800 clamp(1.8rem,3vw,2.6rem)/1.1 Manrope;letter-spacing:-.045em;margin:9px 0}
+.stc-map-heading p{color:var(--muted);margin:0}
+.stc-map-controls{display:flex;gap:10px;flex-wrap:wrap}
+.stc-map-choice{min-height:44px}
+.stc-map-choice.active{background:var(--cyan);color:#061827;border-color:var(--cyan)}
+.stc-map-frame-wrap{max-width:1250px;margin:0 auto;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:#0b1a2a;box-shadow:var(--stc-shadow)}
+.stc-map-frame-wrap iframe{display:block;width:100%;height:420px;border:0}
+.stc-map-footer{max-width:1250px;margin:14px auto 0;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.stc-map-footer strong{font-size:.9rem;line-height:1.5}
+@media(max-width:700px){.stc-map-heading{align-items:flex-start;flex-direction:column}.stc-map-controls{width:100%}.stc-map-choice{flex:1}.stc-map-frame-wrap iframe{height:340px}.stc-map-footer{align-items:flex-start;flex-direction:column}.stc-map-footer .btn{width:100%;justify-content:center}}

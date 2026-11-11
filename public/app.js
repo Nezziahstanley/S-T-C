@@ -80,6 +80,8 @@ async function loadPublic() {
   ]);
   const serviceItems = services.status === "fulfilled" ? services.value.services : [];
   window.stcServices = serviceItems;
+  window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
+  window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
   if (typeof routePublicPage === "function") routePublicPage();
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   const postItems = posts.status === "fulfilled" ? posts.value.posts : [];
@@ -263,4 +265,30 @@ function renderServiceRoute(){
  $("#pageView").innerHTML='<section class="service-detail-hero"><div class="detail-copy"><a class="back-link" href="#services">← All services</a><div class="eyebrow">STANLEY TECH CONNECT · OUR SERVICES</div><h1>'+name+'<br><em>made purposeful.</em></h1><p>'+summary+'</p><div class="hero-buttons"><a class="btn btn-primary btn-large" href="#contact">Discuss your project ↗</a><a class="btn btn-outline btn-large" href="#services">Explore other services</a></div></div><div class="detail-art"><div class="detail-art-orbit"></div><div class="detail-art-core">STC<span>✦</span></div><small>LEARN • BUILD • CREATE • CONNECT</small></div></section><section class="detail-content"><div><div class="eyebrow">THE STC DIFFERENCE</div><h2>Built around what<br><em>you need to achieve.</em></h2><p class="detail-lead">'+details+'</p></div><div class="detail-list"><h3>What you can expect</h3>'+points.map((p,i)=>'<div class="detail-list-row"><b>0'+(i+1)+'</b><span>'+p+'</span></div>').join("")+'</div></section><section class="detail-cta"><div><div class="eyebrow">LET’S GET STARTED</div><h2>Have a project<br><em>in mind?</em></h2><p>Tell us what you want to achieve. We’ll help you map out the next step.</p></div><a class="btn btn-primary btn-large" href="#contact">Start an enquiry ↗</a></section>';
  window.scrollTo({top:0,behavior:"instant"});
 }
-window.addEventListener("hashchange",renderServiceRoute);
+
+function renderPageRoute(){
+ const match=(location.hash||"").match(/^#page\\/([^?]+)/);
+ if(!match){renderServiceRoute();return;}
+ const page=decodeURIComponent(match[1]).toLowerCase();
+ const services=window.stcServices||[], projects=window.stcPortfolio||[], posts=window.stcPosts||[];
+ const pageShell=(eyebrow,title,lead,body)=>'<section class="route-hero"><div class="eyebrow">'+eyebrow+'</div><h1>'+title+'</h1><p>'+lead+'</p></section>'+body;
+ const serviceCards=services.map((item,i)=>'<a class="service-card" href="#service/'+esc(item.slug||slugify(item.name))+'"><span class="service-index">0'+(i+1)+' / STC</span><h3>'+esc(item.name)+'</h3><p>'+esc(item.summary||item.description||"Practical technology solutions built around your goals.")+'</p><span class="service-more">Explore service ↗</span></a>').join("");
+ const projectCards=projects.map((item,i)=>'<article class="portfolio-card"><div class="portfolio-art"><span>'+(i===0?'✚':i===1?'▦':'✦')+'</span></div><div class="portfolio-body"><small>'+esc(item.category||"STC PROJECT")+'</small><h3>'+esc(item.title)+'</h3><p>'+esc(item.summary||item.details||"")+'</p>'+(item.url?'<p><a class="text-arrow" href="'+esc(item.url)+'" target="_blank" rel="noreferrer">View project ↗</a></p>':'')+'</div></article>').join("");
+ const insightCards=posts.map(item=>'<article class="journal-card"><small>'+date(item.published_at)+' · STC JOURNAL</small><h3>'+esc(item.title)+'</h3><p>'+esc(item.excerpt||"")+'</p></article>').join("");
+ const pages={
+ services:()=>pageShell("WHAT WE DO","Technology that moves your work forward.","Explore the services Stanley Tech Connect provides to businesses, institutions, creators and individuals.",'<section class="route-section"><div class="service-grid">'+(serviceCards||'<div class="empty-state">Our service catalogue is being updated. Contact STC for assistance.</div>')+'</div></section>'),
+ about:()=>pageShell("ABOUT STANLEY TECH CONNECT","Practical technology. Human progress.","STC brings design, development and dependable support together to turn ideas into useful digital experiences.",'<section class="route-section split-route"><div><div class="eyebrow">OUR PURPOSE</div><h2>Progress, <em>connected.</em></h2><p>We believe technology should solve real problems, simplify work and create opportunities. Our approach combines thoughtful design, practical engineering and clear communication.</p></div><div class="route-points"><article><b>01</b><h3>Understand first</h3><p>We start with the people, goals and challenges behind every project.</p></article><article><b>02</b><h3>Build with purpose</h3><p>We create useful, accessible and maintainable digital solutions.</p></article><article><b>03</b><h3>Support the journey</h3><p>We stay focused on quality, learning and continuous improvement.</p></article></div></section><section class="route-cta"><h2>Have an idea worth building?</h2><a class="btn btn-primary btn-large" href="#page/contact">Talk to STC ↗</a></section>'),
+ portfolio:()=>pageShell("SELECTED WORK","Ideas turned into working solutions.","A closer look at digital platforms, websites and technology projects in the STC ecosystem.",'<section class="route-section"><div class="portfolio-grid">'+(projectCards||'<div class="empty-state">Projects will appear here as they are published.</div>')+'</div></section>'),
+ training:()=>pageShell("STC LEARNING & TRAINING","Build skills. Create possibilities.","Practical technology training designed to help learners gain confidence through guided learning and hands-on projects.",'<section class="route-section split-route"><div><div class="eyebrow">LEARN BY DOING</div><h2>From curiosity to <em>capability.</em></h2><p>STC training focuses on practical digital skills, structured learning and project-based experience. Tell us what you want to learn and we can discuss a suitable path.</p><a class="btn btn-primary btn-large" href="#page/contact">Ask about training ↗</a></div><div class="route-points"><article><b>01</b><h3>Web development</h3><p>Learn the foundations of building and publishing websites.</p></article><article><b>02</b><h3>Digital productivity</h3><p>Build confidence with practical digital tools and workflows.</p></article><article><b>03</b><h3>Project-based learning</h3><p>Turn lessons into real work you can demonstrate.</p></article></div></section>'),
+ insights:()=>pageShell("STC JOURNAL","Ideas worth sharing.","Updates, practical technology insights and lessons from the STC journey.",'<section class="route-section"><div class="journal-grid">'+(insightCards||'<div class="empty-state">New insights will be published here soon.</div>')+'</div></section>'),
+ contact:()=>pageShell("CONTACT STC","Let's make your next idea real.","Tell us what you are planning. We will help you identify a practical next step.",'<section class="route-section contact-route"><div class="contact-route-card"><div class="eyebrow">START A CONVERSATION</div><h2>Stanley Tech Connect</h2><p>Email: <a href="mailto:stanleytechconnect@gmail.com">stanleytechconnect@gmail.com</a></p><p>Instagram: <a href="https://www.instagram.com/stanleytechconnect" target="_blank" rel="noreferrer">@stanleytechconnect</a></p><a class="btn btn-primary btn-large" href="#contact">Go to project enquiry form ↗</a></div></section>')
+ };
+ const render=pages[page];
+ if(!render){location.hash="#page/services";return;}
+ $("#publicSite").classList.add("hidden");$("#siteFooter").classList.add("hidden");
+ $("#pageView").classList.remove("hidden");$("#pageView").innerHTML=render();
+ window.scrollTo({top:0,behavior:"instant"});
+}
+window.addEventListener("hashchange",renderPageRoute);
+window.addEventListener("DOMContentLoaded",renderPageRoute);
+

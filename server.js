@@ -277,7 +277,7 @@ app.get("/api/auth/me", requireUser, async (req, res) => {
 app.get("/api/client/dashboard", requireUser, async (req, res) => {
   const uid = req.user.id;
   const results = await Promise.all([
-    db.from("stc_profiles").select("full_name,phone,company").eq("user_id", uid).maybeSingle(),
+    db.from("stc_profiles").select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", uid).maybeSingle(),
     db.from("stc_projects").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_quotes").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_invoices").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),

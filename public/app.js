@@ -489,6 +489,24 @@ function renderPageRoute(){
  }
  window.scrollTo({top:0,behavior:"instant"});
  $$("#pageView [data-filter]").forEach(b=>b.addEventListener("click",()=>{$$("#pageView [data-filter]").forEach(x=>x.classList.toggle("active",x===b));$$("#pageView [data-category]").forEach(x=>x.classList.toggle("hidden",b.dataset.filter!=="All"&&x.dataset.category!==b.dataset.filter));}));
+ if(location.hash==="#page/services"){
+  const search=$("#serviceSearch"), cards=$$(".stc-service-card"), empty=$("#servicesEmpty");
+  const applyServiceSearch=()=>{
+   const term=(search?.value||"").trim().toLowerCase();
+   const category=$$("#pageView [data-filter].active")[0]?.dataset.filter||"All";
+   let visible=0;
+   cards.forEach(card=>{
+    const categoryMatch=category==="All"||card.dataset.category===category;
+    const textMatch=!term||(card.dataset.serviceSearch||"").includes(term);
+    const show=categoryMatch&&textMatch;
+    card.classList.toggle("hidden",!show);
+    if(show)visible++;
+   });
+   empty?.classList.toggle("hidden",visible>0);
+  };
+  search?.addEventListener("input",applyServiceSearch);
+  $$("#pageView [data-filter]").forEach(button=>button.addEventListener("click",applyServiceSearch));
+ }
  $$("#pageView [data-title]").forEach(t=>t.addEventListener("click",()=>{const modal=$("#portfolioModal");if(!modal)return;$("#modalCategory").textContent=t.dataset.category;$("#modalTitle").textContent=t.dataset.title;$("#modalDescription").textContent=t.dataset.description;modal.classList.remove("hidden");}));
  $("#closePortfolioModal")?.addEventListener("click",()=>$("#portfolioModal")?.classList.add("hidden"));
  $("#portfolioModal")?.addEventListener("click",e=>{if(e.target.id==="portfolioModal")e.currentTarget.classList.add("hidden");});

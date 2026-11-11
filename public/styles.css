@@ -94,3 +94,28 @@ body{background:#fff;color:#101828;font-family:Inter,"DM Sans",sans-serif}
 .portal{background:#f4f7fc;color:#101828}.portal-sidebar{background:#081a3a;color:#fff}.portal-top,.panel,.metric-card{background:#fff;color:#10234b}
 @media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:100px}.hero-visual{height:360px}.stc-stats{grid-template-columns:repeat(2,1fr)}.stc-stat:nth-child(2){border:0}}
 @media(max-width:560px){.stc-stats{padding:36px 18px;gap:22px}.stc-stat{border:0}.hero{padding-left:24px;padding-right:24px}.hero-visual{height:300px}.topbar{padding:0 18px}}
+
+
+/* Detailed STC public-page sections */
+.route-hero{position:relative;overflow:hidden;padding:112px 8vw 82px;background:linear-gradient(125deg,#071b43 0%,#124a9c 58%,#0ea5e9 100%);color:#fff}
+.route-hero:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 82% 20%,rgba(56,189,248,.3),transparent 34%),linear-gradient(90deg,transparent 49%,rgba(255,255,255,.045) 50%,transparent 51%);background-size:auto,48px 48px}
+.route-hero>*{position:relative;z-index:1}.route-hero h1{max-width:980px}.route-section{max-width:1440px;margin:0 auto}
+.route-section.split-route{padding-top:88px;padding-bottom:88px}.route-section.split-route h2{max-width:620px}
+.route-section.split-route>div:first-child>p{line-height:1.85;margin:18px 0;color:#64748b}
+.route-points article{padding:22px 0}.route-points h3{font-size:1.12rem;color:#10234b}
+.route-points article p{line-height:1.75}
+.values-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+.values-grid article{padding:26px;border:1px solid #e2eaf5;border-radius:18px;background:#fff;box-shadow:0 8px 26px rgba(15,35,65,.05)}
+.founder-route{padding:78px 8vw;background:linear-gradient(135deg,#f4f8ff,#eaf4ff);border-top:1px solid #e2eaf5;border-bottom:1px solid #e2eaf5}
+.founder-route h2{font:800 clamp(2.3rem,4.2vw,3.8rem)/1.08 Manrope;letter-spacing:-.055em;color:#10234b;margin:18px 0 8px}
+.founder-route>p{max-width:850px;color:#52647c;line-height:1.85}
+.founder-skills{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.founder-skills span{padding:10px 15px;border-radius:999px;background:#fff;border:1px solid #d9e7f8;color:#1554a0;font-weight:700;font-size:.82rem}
+.course-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.course-grid .service-card{padding:28px;min-height:210px}
+.route-cta{background:linear-gradient(120deg,#071b43,#124a9c);color:#fff}
+.route-cta h2{color:#fff}.route-cta p{max-width:620px;color:#cbdcf5;margin-top:10px}
+.contact-route-card{max-width:780px}.contact-route-card p{line-height:1.8;margin:14px 0}
+.contact-route-card p b{color:#10234b}
+@media(max-width:900px){.values-grid,.course-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.route-hero{padding:76px 6vw 58px}.values-grid,.course-grid{grid-template-columns:1fr}.founder-route{padding:58px 6vw}.route-section.split-route{padding-top:58px;padding-bottom:58px}}

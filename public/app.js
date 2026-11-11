@@ -194,6 +194,32 @@ $("#enquiryForm").addEventListener("submit", async event => {
   finally { button.disabled = false; }
 });
 
+function renderSTCAnnouncements(posts = window.stcPosts || []) {
+  const track = $("#stcAnnouncementTrack");
+  if (!track) return;
+  const cleanPosts = (Array.isArray(posts) ? posts : []).filter(post => post && post.title);
+  const items = cleanPosts.length ? cleanPosts.slice(0, 12).map(post => ({ title: post.title, excerpt: post.excerpt || "" })) : [{ title: "Welcome to Stanley Tech Connect", excerpt: "Learn • Build • Create • Connect" }, { title: "Explore our services and practical technology training", excerpt: "" }];
+  const markup = items.map(item => "<span class=\"stc-marquee-item\"><b>" + esc(item.title) + "</b>" + (item.excerpt ? "<small> — " + esc(item.excerpt) + "</small>" : "") + "</span><span class=\"stc-marquee-star\" aria-hidden=\"true\">✦</span>").join("");
+  track.innerHTML = markup + markup;
+  track.setAttribute("aria-label", cleanPosts.length ? "Latest published STC posts and announcements" : "STC welcome announcements");
+}
+function initSTCAnnouncementControls() {
+  const bar = $("#stcAnnouncementBar"), toggle = $("#stcMarqueeToggle");
+  if (!bar || !toggle) return;
+  toggle.addEventListener("click", () => { const paused = bar.classList.toggle("is-paused"); toggle.textContent = paused ? "▶" : "Ⅱ"; toggle.setAttribute("aria-label", paused ? "Resume announcements" : "Pause announcements"); toggle.setAttribute("aria-pressed", String(paused)); });
+}
+function initSTCStockVideos() {
+  const videos = [...document.querySelectorAll(".stc-stock-video")];
+  if (!videos.length) return;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  videos.forEach(video => { video.muted = true; video.playsInline = true; });
+  if (reduceMotion || !("IntersectionObserver" in window)) return;
+  const observer = new IntersectionObserver(entries => entries.forEach(entry => { const video = entry.target; if (entry.isIntersecting) { if (video.readyState === 0) video.load(); video.play().catch(() => {}); } else video.pause(); }), { threshold: 0.2 });
+  videos.forEach(video => observer.observe(video));
+}
+initSTCAnnouncementControls();
+initSTCStockVideos();
+
 async function loadPublic() {
   const [services, portfolio, posts] = await Promise.allSettled([
     api("/api/public/services"), api("/api/public/portfolio"), api("/api/public/posts")
@@ -211,6 +237,7 @@ async function loadPublic() {
   window.stcServices = serviceItems;
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
+  renderSTCAnnouncements(window.stcPosts);
   if (typeof renderPageRoute === "function") renderPageRoute();
   if (typeof routePublicPage === "function") routePublicPage();
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];

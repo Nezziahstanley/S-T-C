@@ -571,14 +571,22 @@ function slugify(value){return String(value||"service").toLowerCase().trim().rep
 function renderServiceRoute(){
  const match=(location.hash||"").match(/^#service\/([^?]+)/);
  if(!match){$("#pageView").classList.add("hidden");$("#publicSite").classList.remove("hidden");$("#siteFooter").classList.remove("hidden");return;}
- const slug=decodeURIComponent(match[1]);
- const items=window.stcServices||[];
+ const requestedSlug=decodeURIComponent(match[1]).toLowerCase().trim();
+ const aliases={"student-projects":"student-project-support","student-project":"student-project-support","computer-repair":"computer-repairs","siwes":"siwes-it-placement","it-placement":"siwes-it-placement","data-analysis":"data-analysis-training","virtual-assistant":"virtual-assistant-training"};
+ const slug=aliases[requestedSlug]||requestedSlug;
  const extraServices=[
+  {name:"Web Development",slug:"web-development",summary:"Professional website design, development and maintenance."},
+  {name:"Graphic Design",slug:"graphic-design",summary:"Brand identity, flyers, banners and digital graphics."},
+  {name:"Computer Training",slug:"computer-training",summary:"Practical computer and digital skills training."},
+  {name:"IT Consulting",slug:"it-consulting",summary:"Technology guidance and practical IT support."},
+  {name:"Student Project Support",slug:"student-project-support",summary:"ND/HND project planning, development and presentation guidance."},
+  {name:"Computer Repairs",slug:"computer-repairs",summary:"Computer diagnostics, troubleshooting and maintenance."},
   {name:"Data Analysis Training",slug:"data-analysis-training",summary:"Practical data analysis, spreadsheet skills, reporting and dashboards."},
   {name:"Virtual Assistant Training",slug:"virtual-assistant-training",summary:"Learn remote administrative support, communication, research and productivity tools."},
-  {name:"SIWES / IT Placement",slug:"siwes-it-placement",summary:"Structured practical technology exposure and supervised workplace learning for eligible students."}
+  {name:"SIWES / IT Placement",slug:"siwes-it-placement",summary:"Structured practical technology exposure and supervised workplace learning."}
  ];
- const item=items.find(x=>slugify(x.slug||x.name)===slug)||extraServices.find(x=>x.slug===slug);
+ const items=Array.isArray(window.stcServices)?window.stcServices:[];
+ const item=items.find(x=>[slugify(x.slug),slugify(x.name)].some(value=>value===slug||aliases[value]===slug))||extraServices.find(x=>x.slug===slug);
  $("#publicSite").classList.add("hidden");$("#siteFooter").classList.add("hidden");$("#pageView").classList.remove("hidden");
  if(!item){$("#pageView").innerHTML='<section class="service-detail-hero"><div><a class="back-link" href="#page/services">← All services</a><h1>Service not found</h1><p>Choose a service from our services page to explore its details.</p></div></section>';return;}
  const title=String(item.name||slug.replace(/-/g," "));

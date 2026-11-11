@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { token: sessionStorage.getItem("stc_token") || "", user: null, role: "client", isAdmin: false, dashboard: null, currentTab: "overview" };
+const state = { token: sessionStorage.getItem("stc_token") || "", user: null, role: "client", accountType: "client", isAdmin: false, dashboard: null, currentTab: "overview" };
 const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
 const money = (amount, currency = "NGN") => new Intl.NumberFormat("en-NG", { style:"currency", currency, maximumFractionDigits:2 }).format(Number(amount || 0));
 const date = value => value ? new Date(value).toLocaleDateString("en-NG", { day:"numeric", month:"short", year:"numeric" }) : "—";
@@ -291,15 +291,15 @@ async function loadPublic() {
 }
 
 const clientTabs = [
-  ["overview","◫","Overview"],["projects","▦","My projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices & payments"],["support","✉","Support"],["profile","◎","My profile"]
+  ["overview","◫","Overview"],["training","🎓","My training"],["projects","▦","My projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices & payments"],["support","✉","Support"],["profile","◎","My profile"]
 ];
 const adminTabs = [
-  ["overview","◫","Overview"],["enquiries","✉","Enquiries"],["projects","▦","Projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices"],["tickets","◉","Support tickets"],["services","⌘","Services"],["portfolio","✦","Portfolio"],["posts","▤","Announcements & Posts"],["media","▧","Media library"],["staff","♙","Staff access"]
+  ["overview","◫","Overview"],["enquiries","✉","Enquiries"],["projects","▦","Projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices"],["payments","₦","Payment verification"],["payment-settings","⚙","Bank settings"],["enrollments","🎓","Student enrolments"],["tickets","◉","Support tickets"],["services","⌘","Services"],["portfolio","✦","Portfolio"],["posts","▤","Announcements & Posts"],["media","▧","Media library"],["staff","♙","Staff access"]
 ];
 async function enterPortal() {
   try {
     const me = await api("/api/auth/me");
-    state.user = me.user; state.role = me.role; state.isAdmin = me.is_admin || me.role !== "client";
+    state.user = me.user; state.role = me.role; state.accountType = me.profile?.account_type || "client"; state.isAdmin = me.is_admin || me.role !== "client";
     $("#userEmail").textContent = me.user.email; $("#userRole").textContent = state.role.replace("_"," ");
     $("#userAvatar").textContent = (me.profile?.full_name || me.user.email).slice(0,1).toUpperCase();
     const tabs = state.isAdmin ? adminTabs : clientTabs;
@@ -336,6 +336,9 @@ async function renderClient(tab) {
       ${panel("Project progress", table(["PROJECT","SERVICE","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.service||"—")}</td><td>${Number(x.progress||0)}%</td><td>${status(x.status)}</td></tr>`)))}
       ${panel("Recent notifications", data.notifications.length?`<div class="list-stack">${data.notifications.slice(0,5).map(x=>`<div class="list-row"><div><b>${esc(x.title)}</b><small>${esc(x.body)} · ${date(x.created_at)}</small></div>${x.read_at?"":`<button class="action-btn" data-read="${x.id}">Mark read</button>`}</div>`).join("")}</div>`:`<div class="empty-state">You're all caught up.</div>`)}`;
     $$("[data-read]").forEach(button=>button.addEventListener("click",async()=>{await api(`/api/client/notifications/${button.dataset.read}/read`,{method:"PATCH"});selectTab("overview");}));
+  } else if (tab === "training") {
+    $("#portalContent").innerHTML = panel("My training programmes", table(["PROGRAMME","INSTITUTION","MODE","START DATE","STATUS"], (data.enrollments || []).map(x => "<tr><td><b>"+esc(x.course_name)+"</b></td><td>"+esc(x.institution||"—")+"</td><td>"+esc(x.mode)+"</td><td>"+date(x.start_date)+"</td><td>"+status(x.status)+"</td></tr>"))) + panel("Apply for training or SIWES / IT placement", '<form id="studentEnrollForm" class="portal-form"><label>Programme<select name="course_name" required><option value="">Select a programme</option><option>Web Development</option><option>Data Analysis</option><option>Virtual Assistant</option><option>Graphic Design</option><option>Computer Fundamentals</option><option>SIWES / Industrial Training (IT) Placement</option></select></label><label>Mode<select name="mode"><option>Online</option><option>Physical</option><option>Hybrid</option></select></label><label>Institution<input name="institution" maxlength="180"></label><label>Department / course of study<input name="department" maxlength="160"></label><label>Current level<input name="study_level" maxlength="80"></label><label>Duration<input name="placement_duration" placeholder="e.g. 3 months"></label><label>Preferred start date<input name="start_date" type="date"></label><button class="btn btn-primary" type="submit">Submit application</button></form>');
+    $("#studentEnrollForm").addEventListener("submit", async event => { event.preventDefault(); try { const result = await api("/api/student/enrollments", {method:"POST", body:JSON.stringify(Object.fromEntries(new FormData(event.currentTarget)))}); toast(result.message); selectTab("training"); } catch(error) { toast(error.message,true); }});
   } else if (tab === "projects") {
     $("#portalContent").innerHTML = panel("Your projects", table(["PROJECT","SERVICE","STARTED","DUE","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b><small>${esc(x.description||"")}</small></td><td>${esc(x.service||"—")}</td><td>${date(x.start_date)}</td><td>${date(x.due_date)}</td><td>${Number(x.progress||0)}%</td><td>${status(x.status)}</td></tr>`)));
   } else if (tab === "quotes") {

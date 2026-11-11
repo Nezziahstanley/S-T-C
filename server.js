@@ -863,6 +863,29 @@ app.post("/api/student/enrollments", requireUser, async (req, res) => {
   }).select("*").single();
   if (error) return sendError(res, error, 400);
   await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.user_metadata?.full_name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
   res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
 });
 

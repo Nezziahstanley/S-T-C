@@ -668,7 +668,8 @@ app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res)
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
   const amount = Number(req.body?.amount);
   const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
-  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);\n  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
   if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
     return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
   }

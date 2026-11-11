@@ -235,8 +235,8 @@ document.addEventListener("visibilitychange", refreshSTCAnnouncements);
 initSTCStockVideos();
 
 async function loadPublic() {
-  const [services, portfolio, posts] = await Promise.allSettled([
-    api("/api/public/services"), api("/api/public/portfolio"), api("/api/public/posts")
+  const [services, portfolio, posts, graduates] = await Promise.allSettled([
+    api("/api/public/services"), api("/api/public/portfolio"), api("/api/public/posts"), api("/api/public/graduates")
   ]);
   const fallbackServices = [
     { slug:"web-development", name:"Web Development" },
@@ -251,6 +251,7 @@ async function loadPublic() {
   window.stcServices = serviceItems;
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
+  window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
   window.stcGraduateGallery = graduates.status === "fulfilled" ? graduates.value.photos : [];
   renderSTCAnnouncements(window.stcPosts);
   if (typeof renderPageRoute === "function") renderPageRoute();

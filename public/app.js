@@ -365,6 +365,12 @@ async function renderClient(tab) {
 }
 
 async function renderAdmin(tab) {
+  if (tab === "payment-settings") {
+    const result=await api("/api/admin/payment-settings"); const p=result.settings||{};
+    const html='<p class="form-note">These details appear to signed-in students and clients when they view invoices. Keep blank until you are ready to publish them.</p><form id="bankSettingsForm" class="portal-form"><label>Bank name<input name="bank_name" maxlength="100" value="'+esc(p.bank_name||"")+'"></label><label>Account name<input name="account_name" maxlength="120" value="'+esc(p.account_name||"")+'"></label><label>Account number<input name="account_number" maxlength="10" pattern="[0-9]{10}" value="'+esc(p.account_number||"")+'"></label><label class="full">Transfer instructions<textarea name="transfer_instructions" maxlength="800">'+esc(p.transfer_instructions||"")+'</textarea></label><button class="btn btn-primary" type="submit">Save bank details</button></form>';
+    $("#portalContent").innerHTML=panel("STC bank transfer settings",html);
+    $("#bankSettingsForm").addEventListener("submit",async event=>{event.preventDefault();try{await api("/api/admin/payment-settings",{method:"PUT",body:JSON.stringify(Object.fromEntries(new FormData(event.currentTarget)))});toast("Bank details saved.");}catch(error){toast(error.message,true);}}); return;
+  }
   if (tab === "overview") {
     const data = await api("/api/admin/dashboard");
     $("#portalContent").innerHTML = `<div class="metric-grid">${Object.entries(data.metrics).map(([key,value])=>`<div class="metric-card"><small>${esc(key)}</small><b>${value}</b></div>`).join("")}</div>
@@ -382,7 +388,9 @@ async function renderAdmin(tab) {
       portfolio:["ID","PROJECT","CATEGORY","FEATURED","ACTION"],
       posts:["ID","TITLE","STATUS","PUBLISHED","ACTION"],
       media:["ID","TITLE","CATEGORY","TYPE","PUBLISHED","ACTION"],
-      staff:["USER ID","ROLE","ACTIVE","ACTION"]
+      staff:["USER ID","ROLE","ACTIVE","ACTION"],
+      payments:["ID","REFERENCE","CLIENT USER ID","AMOUNT","METHOD","STATUS","DATE","ACTION"],
+      enrollments:["ID","STUDENT USER ID","PROGRAMME","INSTITUTION","DEPARTMENT","STATUS","DATE","ACTION"]
     };
     const cols = configs[tab] || [];
     const rows = items.map(x=>{
@@ -396,9 +404,13 @@ async function renderAdmin(tab) {
         portfolio:[x.id,x.title,x.category,x.featured?"Yes":"No"],
         posts:[x.id,x.title,status(x.status),date(x.published_at)],
         media:[x.id,x.title,x.category,x.media_type,x.is_published?"Yes":"No"],
-        staff:[x.user_id,x.role,x.is_active?"Yes":"No"]
+        staff:[x.user_id,x.role,x.is_active?"Yes":"No"],
+        payments:[x.id,x.reference,x.client_user_id,money(x.amount,x.currency),x.method,status(x.status),date(x.created_at)],
+        enrollments:[x.id,x.user_id,x.course_name,x.institution||"—",x.department||"—",status(x.status),date(x.created_at)]
       }[tab] || [];
-      const actions = tab==="enquiries" ? `<button class="action-btn" data-status="${x.id}" data-value="contacted">Mark contacted</button>` :
+      const actions = tab==="payments" && x.method==="bank_transfer" && x.status==="pending_verification" ? '<button class="action-btn" data-receipt="'+x.id+'">View receipt</button><button class="action-btn" data-review="'+x.id+'" data-decision="approve">Verify</button><button class="action-btn" data-review="'+x.id+'" data-decision="reject">Reject</button>' :
+        tab==="enrollments" ? '<button class="action-btn" data-enrollment="'+x.id+'" data-status="approved">Approve</button><button class="action-btn" data-enrollment="'+x.id+'" data-status="active">Activate</button><button class="action-btn" data-enrollment="'+x.id+'" data-status="completed">Complete</button>' :
+        tab==="enquiries" ? `<button class="action-btn" data-status="${x.id}" data-value="contacted">Mark contacted</button>` :
         tab==="tickets" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="closed">Close</button>` :
         tab==="projects" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="completed">Complete</button>` :
         tab==="staff" ? `<button class="action-btn" data-staff="${esc(x.user_id)}" data-active="${!x.is_active}">${x.is_active?"Deactivate":"Activate"}</button>` :
@@ -408,6 +420,9 @@ async function renderAdmin(tab) {
     const createButton = ["projects","quotes","invoices","services","portfolio","posts","staff"].includes(tab) ? `<button class="btn btn-primary" id="createRecord">+ Add ${esc(tab.slice(0,-1))}</button>` : "";
     $("#portalContent").innerHTML = `${panel(`${tab[0].toUpperCase()+tab.slice(1)} management`,`${createButton}${table(cols,rows)}`,`${items.length} records · showing up to 100`)}`;
     $$("[data-status]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/${tab}/${button.dataset.status}`,{method:"PATCH",body:JSON.stringify({status:button.dataset.value})});toast("Record updated.");selectTab(tab);}catch(error){toast(error.message,true);}}));
+    $("[data-receipt]").forEach(button=>button.addEventListener("click",async()=>{try{const r=await api("/api/admin/payments/"+button.dataset.receipt+"/receipt");window.open(r.url,"_blank","noopener,noreferrer");}catch(error){toast(error.message,true);}}));
+    $("[data-review]").forEach(button=>button.addEventListener("click",async()=>{let reason="";if(button.dataset.decision==="reject"){reason=prompt("Reason for rejecting this receipt:")||"";if(!reason.trim())return;}try{const r=await api("/api/admin/payments/"+button.dataset.review+"/verify",{method:"POST",body:JSON.stringify({decision:button.dataset.decision,rejection_reason:reason})});toast(r.message);selectTab("payments");}catch(error){toast(error.message,true);}}));
+    $("[data-enrollment]").forEach(button=>button.addEventListener("click",async()=>{try{await api("/api/admin/enrollments/"+button.dataset.enrollment,{method:"PATCH",body:JSON.stringify({status:button.dataset.status})});toast("Student application updated.");selectTab("enrollments");}catch(error){toast(error.message,true);}}));
     $("#createRecord")?.addEventListener("click",()=>createAdminRecord(tab));
     $("[data-staff]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/staff/${encodeURIComponent(button.dataset.staff)}`,{method:"PATCH",body:JSON.stringify({is_active:button.dataset.active==="true"})});toast("Staff access updated.");selectTab("staff");}catch(error){toast(error.message,true);}}));
     $("[data-publish]").forEach(button=>button.addEventListener("click",async()=>{try{const next=button.dataset.nextStatus;await api(`/api/admin/posts/${button.dataset.publish}`,{method:"PATCH",body:JSON.stringify({status:next,published_at:next==="published"?new Date().toISOString():null})});toast(next==="published"?"Announcement published to the website ticker.":"Post unpublished.");selectTab("posts");}catch(error){toast(error.message,true);}}));

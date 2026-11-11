@@ -354,6 +354,41 @@ function printStudentCard(profile, avatarUrl) {
 
 async function renderClient(tab) {
   const data = await api("/api/client/dashboard"); state.dashboard = data;
+  if (tab === "signature") {
+    if(state.role!=="super_admin") throw new Error("Only the CEO administrator can manage the official signature.");
+    const r=await api("/api/admin/signature"),sig=r.signature||{};
+    $("#portalContent").innerHTML=panel("Official STC electronic signature",'<p class="form-note">Draw your signature below with a mouse, stylus or finger. It will be embedded on official STC certificates and awards.</p><form id="signatureForm" class="portal-form"><label>Signatory name<input name="signer_name" required maxlength="120" value="'+esc(sig.signer_name||"")+'"></label><label>Official title<input name="signer_title" required maxlength="120" value="'+esc(sig.signer_title||"")+'"></label><div class="signature-pad-wrap full"><canvas id="signaturePad" width="720" height="220"></canvas><button type="button" class="action-btn" id="clearSignature">Clear signature</button></div><button class="btn btn-primary" type="submit">Save official signature</button></form>'+(r.signature_url?'<p class="form-note">Current signature on file</p><img class="signature-preview" src="'+esc(r.signature_url)+'" alt="Saved signature">':""));
+    const canvas=$("#signaturePad"),ctx=canvas.getContext("2d");ctx.strokeStyle="#10213d";ctx.lineWidth=3;ctx.lineCap="round";let drawing=false,drawn=false;
+    const pos=e=>{const rect=canvas.getBoundingClientRect();return{x:(e.clientX-rect.left)*canvas.width/rect.width,y:(e.clientY-rect.top)*canvas.height/rect.height};};
+    canvas.addEventListener("pointerdown",e=>{drawing=true;drawn=true;canvas.setPointerCapture(e.pointerId);const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+    canvas.addEventListener("pointermove",e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();});
+    ["pointerup","pointercancel","pointerleave"].forEach(n=>canvas.addEventListener(n,()=>drawing=false));
+    $("#clearSignature").addEventListener("click",()=>{ctx.clearRect(0,0,canvas.width,canvas.height);drawn=false;});
+    $("#signatureForm").addEventListener("submit",async e=>{e.preventDefault();if(!drawn){toast("Please draw your signature first.",true);return;}const values=Object.fromEntries(new FormData(e.currentTarget));try{await api("/api/admin/signature",{method:"PUT",body:JSON.stringify(values)});const saved=await api("/api/admin/signature/upload",{method:"POST",body:JSON.stringify({...values,base64:canvas.toDataURL("image/png")})});toast(saved.message);selectTab("signature");}catch(err){toast(err.message,true);}});
+    return;
+  }
+  if (tab === "certificates") {
+    if(state.role!=="super_admin") throw new Error("Only the CEO administrator can issue official certificates.");
+    const [sr,cr]=await Promise.all([api("/api/admin/students"),api("/api/admin/certificates")]),students=sr.students||[],certs=cr.items||[];
+    const studentOptions=students.map(x=>'<option value="'+esc(x.user_id)+'">'+esc(x.full_name||x.user_id)+' · '+esc(x.student_number||"No ID")+'</option>').join("");
+    const completed=students.flatMap(x=>(x.enrollments||[]).filter(e=>e.status==="completed").map(e=>({...e,student_name:x.full_name})));
+    const courseOptions=completed.map(x=>'<option value="'+x.id+'" data-user="'+esc(x.user_id)+'">'+esc(x.student_name)+' — '+esc(x.course_name)+'</option>').join("");
+    const form='<form id="issueCertificateForm" class="portal-form"><label>Credential type<select name="certificate_type" id="certificateType"><option value="course">Course completion certificate</option><option value="service">Service completion certificate</option></select></label><label>Student / recipient<select name="user_id" id="certificateStudent" required><option value="">Choose student</option>'+studentOptions+'</select></label><label class="full" id="courseEnrollmentField">Completed course<select name="enrollment_id" id="certificateEnrollment"><option value="">Choose completed course</option>'+courseOptions+'</select></label><label>Certificate title<input name="certificate_title" value="Certificate of Completion" maxlength="160"></label><label>Course / service name<input name="programme" id="certificateProgramme" required maxlength="180"></label><label>Grade / achievement<input name="grade" maxlength="80" placeholder="e.g. Distinction"></label><label class="full">Certificate statement<textarea name="description" rows="3" maxlength="1000"></textarea></label><button class="btn btn-primary" type="submit">Issue signed certificate</button></form>';
+    $("#portalContent").innerHTML=panel("Issue an STC certificate",form)+panel("Issued certificates",table(["NUMBER","RECIPIENT","PROGRAMME","TYPE","ISSUED","STATUS"],certs.map(x=>'<tr><td>'+esc(x.certificate_number)+'</td><td>'+esc(x.recipient_name)+'</td><td>'+esc(x.programme)+'</td><td>'+esc(x.certificate_type)+'</td><td>'+date(x.issued_at)+'</td><td>'+status(x.status)+'</td></tr>')));
+    $("#certificateType").addEventListener("change",e=>{$("#courseEnrollmentField").classList.toggle("hidden",e.target.value!=="course");$("#certificateProgramme").placeholder=e.target.value==="service"?"Service delivered":"Course completed";});
+    $("#certificateEnrollment").addEventListener("change",e=>{const o=e.target.selectedOptions[0];if(o?.dataset.user){$("#certificateStudent").value=o.dataset.user;$("#certificateProgramme").value=o.textContent.split(" — ").slice(1).join(" — ");}});
+    $("#issueCertificateForm").addEventListener("submit",async e=>{e.preventDefault();const body=Object.fromEntries(new FormData(e.currentTarget));if(body.certificate_type==="course"){const o=$("#certificateEnrollment").selectedOptions[0];if(!o?.dataset.user){toast("Choose a completed course enrolment.",true);return;}body.user_id=o.dataset.user;body.enrollment_id=Number(body.enrollment_id);}else delete body.enrollment_id;try{const r=await api("/api/admin/certificates",{method:"POST",body:JSON.stringify(body)});toast(r.message);selectTab("certificates");}catch(err){toast(err.message,true);}});
+    return;
+  }
+  if (tab === "awards") {
+    if(state.role!=="super_admin") throw new Error("Only the CEO administrator can issue official awards.");
+    const [sr,ar]=await Promise.all([api("/api/admin/students"),api("/api/admin/awards")]),students=sr.students||[],awards=ar.items||[];
+    const options=students.map(x=>'<option value="'+esc(x.user_id)+'">'+esc(x.full_name||x.user_id)+' · '+esc(x.student_number||"No ID")+'</option>').join("");
+    const form='<form id="issueAwardForm" class="portal-form"><label>Recipient<select name="user_id" required><option value="">Select student</option>'+options+'</select></label><label>Award category<input name="award_type" maxlength="100" value="Achievement"></label><label class="full">Award title<input name="award_title" required maxlength="180" placeholder="e.g. Best Graduating Student"></label><label class="full">Citation / reason<textarea name="description" rows="3" maxlength="1000"></textarea></label><button class="btn btn-primary" type="submit">Issue signed award</button></form>';
+    $("#portalContent").innerHTML=panel("Present an STC award",form)+panel("Awards register",table(["AWARD NO.","RECIPIENT ID","AWARD","CATEGORY","ISSUED","STATUS"],awards.map(x=>'<tr><td>'+esc(x.award_number||"—")+'</td><td>'+esc(x.user_id)+'</td><td>'+esc(x.award_title)+'</td><td>'+esc(x.award_type)+'</td><td>'+date(x.issued_at)+'</td><td>'+status(x.status)+'</td></tr>')));
+    $("#issueAwardForm").addEventListener("submit",async e=>{e.preventDefault();try{const r=await api("/api/admin/awards",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(e.currentTarget)))});toast(r.message);selectTab("awards");}catch(err){toast(err.message,true);}});
+    return;
+  }
   if (tab === "overview") {
     const totalDue = data.invoices.filter(x=>x.status!=="paid").reduce((n,x)=>n+Number(x.amount||0),0);
     $("#portalContent").innerHTML = `

@@ -600,12 +600,13 @@ app.patch("/api/account/profile", requireUser, async (req, res) => {
   const phone = clean(req.body?.phone);
   const institution = clean(req.body?.institution);
   const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
   const study_level = clean(req.body?.study_level);
   if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
-      institution.length > 180 || department.length > 160 || study_level.length > 80) {
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
     return res.status(400).json({ error: "Enter valid account and profile details." });
   }
-  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level };
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
   const { data: existing } = await db.from("stc_profiles").select("student_number")
     .eq("user_id", req.user.id).maybeSingle();
   if (account_type === "student" && !existing?.student_number) {

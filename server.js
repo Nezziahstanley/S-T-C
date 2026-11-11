@@ -460,7 +460,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
 app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
   if (!validEmail(email)) return res.status(400).json({ error: "Enter the email address on your STC account." });
-  const redirectTo = (STC_PUBLIC_URL || "").replace(/\/$/, "") + "/?password-reset=1";
+  const redirectTo = (STC_PUBLIC_URL || "https://stanley-tech-connect.onrender.com").replace(/\/$/, "") + "/?password-reset=1";
   const { error } = await authClient.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) return sendError(res, error, 400);
   res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });
@@ -574,6 +574,7 @@ app.post("/api/admin/awards", requireStaff, async (req,res) => {
   await audit(req.user,"issue_award","awards",data.id,{award_number});
   res.status(201).json({award:data,message:"Award issued successfully."});
 });
+app.get("/api/public/awards/:number", async (req,res)=>{ const number=clean(req.params.number); const {data,error}=await db.from("stc_awards").select("award_number,award_title,award_type,issued_at,status,signer_name,signer_title").eq("award_number",number).maybeSingle(); if(error)return sendError(res,error,500); if(!data||data.status!=="issued")return res.status(404).json({error:"No active STC award matches that number."}); res.json({award:data,verified:true}); });
 app.get("/api/public/certificates/:number", async (req,res)=>{
   const number=clean(req.params.number);
   const {data,error}=await db.from("stc_certificates").select("certificate_number,recipient_name,programme,certificate_title,certificate_type,issued_at,status,signer_name,signer_title").eq("certificate_number",number).maybeSingle();
@@ -662,7 +663,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   }
   if (!staffCan(req, resource)) return res.status(403).json({ error: "Your staff role cannot edit this section." });
   const editable = {
-    enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
     quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
     invoices: ["description", "amount", "currency", "status", "due_date"],
     tickets: ["status", "priority"],
@@ -673,6 +674,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   }[resource];
   if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
   const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
   if (resource === "invoices" && payload.status === "paid") {
     return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
   }

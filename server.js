@@ -442,7 +442,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
 });
 
 const adminTables = {
-  enquiries: "stc_enquiries", projects: "stc_projects", quotes: "stc_quotes",
+  enrollments: "stc_training_enrollments", enquiries: "stc_enquiries", projects: "stc_projects", quotes: "stc_quotes",
   invoices: "stc_invoices", payments: "stc_payments", tickets: "stc_tickets",
   services: "stc_services", posts: "stc_posts", portfolio: "stc_portfolio",
   media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles"

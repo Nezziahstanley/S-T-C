@@ -229,7 +229,19 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
   });
 });
 
-// Email OTP authentication
+// Email OTP and password authentication
+app.post("/api/auth/password/sign-in", authLimiter, async (req,res) => {
+  const email=clean(req.body?.email).toLowerCase(), password=typeof req.body?.password==="string"?req.body.password:"";
+  if(!validEmail(email)||!password)return res.status(400).json({error:"Enter your email and password."});
+  const {data,error}=await authClient.auth.signInWithPassword({email,password});
+  if(error||!data?.session?.access_token||!data?.user)return res.status(401).json({error:"Email or password is incorrect. You can also sign in with an email code."});
+  const user=data.user;
+  const {error:profileError}=await db.from("stc_profiles").upsert({user_id:user.id,full_name:clean(user.user_metadata?.full_name)||email.split("@")[0]},{onConflict:"user_id",ignoreDuplicates:true});
+  if(profileError)console.error("Profile setup:",profileError.message);
+  const isAdmin=Boolean(adminEmail&&email===adminEmail);
+  const {data:staff}=await db.from("stc_staff_roles").select("role,is_active").eq("user_id",user.id).maybeSingle();
+  res.json({access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at,user:{id:user.id,email:user.email},role:isAdmin?"super_admin":(staff?.is_active?staff.role:"client"),is_admin:isAdmin});
+});
 app.post("/api/auth/request-code", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
   if (!validEmail(email)) return res.status(400).json({ error: "Enter a valid email address." });

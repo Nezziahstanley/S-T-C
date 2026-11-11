@@ -299,7 +299,7 @@ const clientTabs = [
   ["overview","◫","Overview"],["training","🎓","My training"],["projects","▦","My projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices & payments"],["support","✉","Support"],["credentials","🏅","ID & Certificates"],["security","🔐","Account security"],["profile","◎","My profile"]
 ];
 const adminTabs = [
-  ["overview","◫","Overview"],["enquiries","✉","Enquiries"],["projects","▦","Projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices"],["payments","₦","Payment verification"],["payment-settings","⚙","Bank settings"],["enrollments","🎓","Student enrolments"],["certificates","📜","Certificates"],["awards","🏆","Awards"],["signature","✍","Electronic signature"],["tickets","◉","Support tickets"],["services","⌘","Services"],["portfolio","✦","Portfolio"],["posts","▤","Announcements & Posts"],["media","▧","Media library"],["staff","♙","Staff access"]
+  ["overview","◫","Overview"],["enquiries","✉","Enquiries"],["projects","▦","Projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices"],["payments","₦","Payment verification"],["payment-settings","⚙","Bank settings"],["enrollments","🎓","Student enrolments"],["certificates","📜","Certificates"],["awards","🏆","Awards"],["signature","✍","Electronic signature"],["tickets","◉","Support tickets"],["services","⌘","Services"],["portfolio","✦","Portfolio"],["posts","▤","Announcements & Posts"],["media","▧","Media library"],["staff","♙","Staff access"],["profile","◎","My profile"],["security","🔐","Account security"]
 ];
 async function enterPortal() {
   try {
@@ -408,6 +408,7 @@ async function renderClient(tab) {
 }
 
 async function renderAdmin(tab) {
+  if(tab==="profile"||tab==="security") return renderClient(tab);
   if (tab === "payment-settings") {
     const result=await api("/api/admin/payment-settings"); const p=result.settings||{};
     const html='<p class="form-note">These details appear to signed-in students and clients when they view invoices. Keep blank until you are ready to publish them.</p><form id="bankSettingsForm" class="portal-form"><label>Bank name<input name="bank_name" maxlength="100" value="'+esc(p.bank_name||"")+'"></label><label>Account name<input name="account_name" maxlength="120" value="'+esc(p.account_name||"")+'"></label><label>Account number<input name="account_number" maxlength="10" pattern="[0-9]{10}" value="'+esc(p.account_number||"")+'"></label><label class="full">Transfer instructions<textarea name="transfer_instructions" maxlength="800">'+esc(p.transfer_instructions||"")+'</textarea></label><button class="btn btn-primary" type="submit">Save bank details</button></form>';

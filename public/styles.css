@@ -483,3 +483,83 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 @media(max-width:850px){.about-feature{grid-template-columns:1fr;margin:52px auto 70px}.about-feature-image,.about-feature-image img{min-height:360px}.about-founder{grid-template-columns:1fr;margin-bottom:70px}.about-founder-photo,.about-founder-photo img{min-height:420px;max-height:560px}.about-values-grid{grid-template-columns:repeat(2,1fr)}.about-purpose{margin-bottom:70px}.about-approach,.about-values{margin-bottom:70px}}
 @media(max-width:600px){.about-purpose{grid-template-columns:1fr}.about-steps{grid-template-columns:1fr}.about-values-grid{grid-template-columns:1fr 1fr}.about-feature-image,.about-feature-image img{min-height:280px}.about-founder{padding:18px}.about-founder-photo,.about-founder-photo img{min-height:340px}.about-cta{align-items:flex-start;flex-direction:column}.about-image-tag{left:18px;bottom:18px;font-size:.62rem}}
 @media(prefers-reduced-motion:reduce){.about-feature-image img{transition:none}}
+
+
+/* About page: keep award and people imagery balanced and consistently ordered */
+#pageView .award-gallery{
+  width:min(1120px,100%);
+  margin:28px auto 0;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-flow:row;
+  align-items:stretch;
+  gap:20px;
+}
+#pageView .award-gallery>div{
+  position:relative;
+  min-width:0;
+  width:100%;
+  aspect-ratio:4/3;
+  max-height:260px;
+  overflow:hidden;
+  border-radius:18px;
+  padding:14px;
+  background-size:cover;
+  background-position:center;
+}
+#pageView .award-gallery img{
+  display:block;
+  width:100%;
+  height:100%;
+  max-height:260px;
+  aspect-ratio:4/3;
+  object-fit:cover;
+  object-position:center;
+  border-radius:16px;
+}
+#pageView .team-grid{
+  width:min(1080px,100%);
+  margin:28px auto 0;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-flow:row;
+  align-items:stretch;
+  gap:22px;
+}
+#pageView .team-grid article{
+  min-width:0;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  overflow:hidden;
+}
+#pageView .team-grid img,
+#pageView .team-grid .team-avatar{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:4/5;
+  max-height:280px;
+  object-fit:cover;
+  object-position:center top;
+  overflow:hidden;
+  border-radius:15px;
+  margin:0 0 15px;
+}
+#pageView .team-grid article>span,
+#pageView .team-grid h3,
+#pageView .team-grid article p{flex-shrink:0}
+@media(max-width:900px){
+  #pageView .award-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  #pageView .team-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+}
+@media(max-width:560px){
+  #pageView .award-gallery{grid-template-columns:1fr;max-width:420px;gap:14px}
+  #pageView .award-gallery>div,
+  #pageView .award-gallery img{max-height:230px}
+  #pageView .team-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  #pageView .team-grid article{padding:10px}
+  #pageView .team-grid img,
+  #pageView .team-grid .team-avatar{max-height:210px;aspect-ratio:3/4}
+}

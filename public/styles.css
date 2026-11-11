@@ -860,3 +860,5 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 #graduatePhotoForm input[type=file]{max-width:100%}
 @media(max-width:850px){.graduate-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.graduate-gallery-grid{grid-template-columns:1fr}.graduate-photo-card img{height:240px}.student-id-preview{padding:18px}.student-id-preview img,.student-id-preview .photo-placeholder{width:86px;height:108px}.credential-item{align-items:flex-start;flex-direction:column}#avatarForm{align-items:stretch;flex-direction:column}}
+
+.user-avatar{background-size:cover;background-position:center;background-repeat:no-repeat}

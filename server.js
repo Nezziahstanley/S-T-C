@@ -581,6 +581,16 @@ app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
   res.status(201).json({ message: "Reply sent." });
 });
 
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!staffCan(req, "posts")) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
 app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
 app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
 app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));

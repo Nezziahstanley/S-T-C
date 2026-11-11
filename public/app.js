@@ -392,7 +392,7 @@ async function renderAdmin(tab) {
         tab==="tickets" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="closed">Close</button>` :
         tab==="projects" ? `<button class="action-btn" data-status="${x.id}" data-value="in_progress">In progress</button><button class="action-btn" data-status="${x.id}" data-value="completed">Complete</button>` :
         tab==="staff" ? `<button class="action-btn" data-staff="${esc(x.user_id)}" data-active="${!x.is_active}">${x.is_active?"Deactivate":"Activate"}</button>` :
-        tab==="posts" ? `<button class="action-btn" data-publish="${x.id}" data-status="${x.status==="published"?"draft":"published"}">${x.status==="published"?"Unpublish":"Publish"}</button>` : "—";
+        tab==="posts" ? `<button class="action-btn" data-publish="${x.id}" data-next-status="${x.status==="published"?"draft":"published"}">${x.status==="published"?"Unpublish":"Publish"}</button>` : "—";
       return `<tr>${cells.map(c=>`<td>${typeof c==="string"&&c.startsWith("<span")?c:esc(c)}</td>`).join("")}<td>${actions}</td></tr>`;
     });
     const createButton = ["projects","quotes","invoices","services","portfolio","posts","staff"].includes(tab) ? `<button class="btn btn-primary" id="createRecord">+ Add ${esc(tab.slice(0,-1))}</button>` : "";
@@ -400,7 +400,7 @@ async function renderAdmin(tab) {
     $$("[data-status]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/${tab}/${button.dataset.status}`,{method:"PATCH",body:JSON.stringify({status:button.dataset.value})});toast("Record updated.");selectTab(tab);}catch(error){toast(error.message,true);}}));
     $("#createRecord")?.addEventListener("click",()=>createAdminRecord(tab));
     $("[data-staff]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/staff/${encodeURIComponent(button.dataset.staff)}`,{method:"PATCH",body:JSON.stringify({is_active:button.dataset.active==="true"})});toast("Staff access updated.");selectTab("staff");}catch(error){toast(error.message,true);}}));
-    $("[data-publish]").forEach(button=>button.addEventListener("click",async()=>{try{const next=button.dataset.status;await api(`/api/admin/posts/${button.dataset.publish}`,{method:"PATCH",body:JSON.stringify({status:next,published_at:next==="published"?new Date().toISOString():null})});toast(next==="published"?"Announcement published to the website ticker.":"Post unpublished.");selectTab("posts");}catch(error){toast(error.message,true);}}));
+    $("[data-publish]").forEach(button=>button.addEventListener("click",async()=>{try{const next=button.dataset.nextStatus;await api(`/api/admin/posts/${button.dataset.publish}`,{method:"PATCH",body:JSON.stringify({status:next,published_at:next==="published"?new Date().toISOString():null})});toast(next==="published"?"Announcement published to the website ticker.":"Post unpublished.");selectTab("posts");}catch(error){toast(error.message,true);}}));
   }
 }
 async function createAdminRecord(resource) {

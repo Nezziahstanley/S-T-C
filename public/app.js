@@ -27,9 +27,77 @@ function closeLogin() { $("#loginDialog").close(); }
 $("#openLogin").addEventListener("click", openLogin);
 $("#footerLogin").addEventListener("click", openLogin);
 $("#closeLogin").addEventListener("click", closeLogin);
-$("#mobileMenu").addEventListener("click", () => $("#mainNav").classList.toggle("open"));
+$("#mobileMenu").addEventListener("click", () => {
+  const menu = $("#mainNav"), button = $("#mobileMenu");
+  const open = menu.classList.toggle("open");
+  button.setAttribute("aria-expanded", String(open));
+  button.setAttribute("aria-label", open ? "Close menu" : "Toggle menu");
+});
 $$(".main-nav a").forEach(link => link.addEventListener("click", () => $("#mainNav").classList.remove("open")));
 $("#year").textContent = new Date().getFullYear();
+
+function initHomeVisuals() {
+  const header = $("#siteHeader");
+  const navLinks = $(".main-nav a");
+  const updateHeader = () => {
+    if (!header) return;
+    const hash = location.hash || "#home";
+    const isHome = !hash.startsWith("#page/") && !hash.startsWith("#service/");
+    header.classList.toggle("is-home", isHome);
+    header.classList.toggle("scrolled", !isHome || window.scrollY > 20);
+    const activeHref = hash.startsWith("#service/") ? "#page/services" :
+      hash.startsWith("#page/") ? "#page/" + hash.slice(6).split(/[/?]/)[0] : "#home";
+    navLinks.forEach(link => link.classList.toggle("active", link.getAttribute("href") === activeHref));
+  };
+  window.addEventListener("scroll", updateHeader, { passive:true });
+  window.addEventListener("hashchange", updateHeader);
+  updateHeader();
+
+  const slides = $(".hero-slide");
+  const indicators = $(".hero-indicator");
+  if (slides.length) {
+    let current = Math.max(0, slides.findIndex(slide => slide.classList.contains("is-active")));
+    const showSlide = index => {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide,i) => slide.classList.toggle("is-active", i === current));
+      indicators.forEach((button,i) => {
+        const active = i === current;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+    };
+    indicators.forEach(button => button.addEventListener("click", () => showSlide(Number(button.dataset.slideTo) || 0)));
+    window.setInterval(() => showSlide(current + 1), 30000);
+  }
+
+  const counters = $(".counter[data-count]");
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finishCounter = node => {
+    node.textContent = Number(node.dataset.count || 0).toLocaleString("en-NG") + (node.dataset.suffix || "");
+  };
+  if (reducedMotion || !("IntersectionObserver" in window)) {
+    counters.forEach(finishCounter);
+  } else {
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const node = entry.target;
+        observer.unobserve(node);
+        const end = Number(node.dataset.count || 0), suffix = node.dataset.suffix || "";
+        const duration = 1800, start = performance.now();
+        const tick = now => {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          node.textContent = Math.floor(eased * end).toLocaleString("en-NG") + suffix;
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    }, { threshold:.3 });
+    counters.forEach(node => observer.observe(node));
+  }
+}
+initHomeVisuals();
 
 $("#requestCodeForm").addEventListener("submit", async event => {
   event.preventDefault();
@@ -78,7 +146,16 @@ async function loadPublic() {
   const [services, portfolio, posts] = await Promise.allSettled([
     api("/api/public/services"), api("/api/public/portfolio"), api("/api/public/posts")
   ]);
-  const serviceItems = services.status === "fulfilled" ? services.value.services : [];
+  const fallbackServices = [
+    { slug:"web-development", name:"Web Development" },
+    { slug:"graphic-design", name:"Graphic Design" },
+    { slug:"computer-training", name:"Computer Training" },
+    { slug:"it-consulting", name:"IT Consulting" },
+    { slug:"student-projects", name:"Student Project Support" },
+    { slug:"computer-repairs", name:"Computer Repairs" }
+  ];
+  const serviceItems = services.status === "fulfilled" && services.value.services?.length
+    ? services.value.services : fallbackServices;
   window.stcServices = serviceItems;
   window.stcPortfolio = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   window.stcPosts = posts.status === "fulfilled" ? posts.value.posts : [];
@@ -86,10 +163,35 @@ async function loadPublic() {
   if (typeof routePublicPage === "function") routePublicPage();
   const portfolioItems = portfolio.status === "fulfilled" ? portfolio.value.portfolio : [];
   const postItems = posts.status === "fulfilled" ? posts.value.posts : [];
-  const icons = ["⌘","▣","◈","⌁","✳","⌂","✦"];
-  $("#serviceGrid").innerHTML = serviceItems.length ? serviceItems.map((item,i) => `
-    <a class="service-card service-link" href="#service/${esc(item.slug || slugify(item.name))}"><span class="service-index">0${i+1} / STC</span><span class="service-icon">${icons[i%icons.length]}</span>
-    <h3>${esc(item.name)}</h3><p>${esc(item.summary || item.description)}</p><span class="service-more">Explore service ↗</span></a>`).join("") : `<div class="loading-card">Our service catalogue is being refreshed. Contact us and we'll help you find the right solution.</div>`;
+  const servicePresentation = {
+    "web-development": { description:"Beautiful, fast, mobile-friendly websites built with modern technology.", features:["Custom websites","E-commerce stores","Landing pages","Maintenance & hosting"] },
+    "graphic-design": { description:"Eye-catching designs that elevate your brand and grab attention.", features:["Logo design","Flyers & banners","Brand identity","Social media graphics"] },
+    "computer-training": { description:"Practical computer training: MS Office, Web Design, Programming and more.", features:["Basic computing","MS Office Suite","Web Design","Programming basics"] },
+    "it-consulting": { description:"Strategic technology guidance for individuals, students and businesses.", features:["Tech strategy","Software recommendations","Network setup","Digital transformation"] },
+    "student-projects": { description:"End-to-end project support: development, documentation and defense prep.", features:["System development","Documentation","Slides & defense prep","Source code support"] },
+    "computer-repairs": { description:"Fast, reliable repairs to get you back up and running.", features:["Hardware diagnostics","Software fixes","Virus removal","Upgrades"] }
+  };
+  const icons = [
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 21h8m-4-4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5L2 9Zm4 2v5c3.5 3 8.5 3 12 0v-5M22 9v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2 4 14h7l-1 8 10-12h-7l1-8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a5 5 0 0 0-6.6 6.6L3 18l3 3 5.1-5.1a5 5 0 0 0 6.6-6.6L14 13l-3-3 3.7-3.7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  ];
+  $("#serviceGrid").innerHTML = serviceItems.map((item,i) => {
+    const slug = item.slug || slugify(item.name);
+    const details = servicePresentation[slug] || {};
+    const features = details.features || [];
+    const description = details.description || item.summary || item.description || "Practical technology solutions designed around your goals.";
+    return `<a class="service-card service-link" href="#service/${esc(slug)}">
+      <div class="service-icon-box">${icons[i%icons.length]}</div>
+      <h3>${esc(item.name || slug.replace(/-/g," "))}</h3>
+      <p>${esc(description)}</p>
+      ${features.length ? `<ul class="service-features">${features.map(feature=>`<li>${esc(feature)}</li>`).join("")}</ul>` : ""}
+      <span class="service-learn">Learn More <span aria-hidden="true">→</span></span>
+    </a>`;
+  }).join("");
   $("#portfolioGrid").innerHTML = portfolioItems.length ? portfolioItems.map((item,i) => `
     <article class="portfolio-card"><div class="portfolio-art"><span>${i===0?"✚":i===1?"▦":"✦"}</span></div><div class="portfolio-body">
     <small>${esc(item.category || "STC PROJECT")}</small><h3>${esc(item.title)}</h3><p>${esc(item.summary || item.details || "")}</p>

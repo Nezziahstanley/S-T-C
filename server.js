@@ -282,7 +282,7 @@ app.get("/api/auth/me", requireUser, async (req, res) => {
 app.get("/api/client/dashboard", requireUser, async (req, res) => {
   const uid = req.user.id;
   const results = await Promise.all([
-    db.from("stc_profiles").select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", uid).maybeSingle(),
+    db.from("stc_profiles").select("full_name,phone,company,account_type,institution,department,study_level,student_number,avatar_key").eq("user_id", uid).maybeSingle(),
     db.from("stc_projects").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_quotes").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_invoices").select("*").eq("client_user_id", uid).order("created_at", { ascending: false }),
@@ -592,6 +592,15 @@ const adminTables = {
   media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles",
   certificates: "stc_certificates", awards: "stc_awards"
 };
+app.get("/api/admin/students", requireStaff, async (req,res) => {
+  if (!staffCan(req,"enrollments")) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").eq("account_type","student").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  res.json({students:(profiles||[]).map(p=>({...p,enrollments:(enrollments||[]).filter(e=>e.user_id===p.user_id)}))});
+});
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });

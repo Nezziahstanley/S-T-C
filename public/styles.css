@@ -878,3 +878,52 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 .stc-map-footer{max-width:1250px;margin:14px auto 0;display:flex;justify-content:space-between;align-items:center;gap:16px}
 .stc-map-footer strong{font-size:.9rem;line-height:1.5}
 @media(max-width:700px){.stc-map-heading{align-items:flex-start;flex-direction:column}.stc-map-controls{width:100%}.stc-map-choice{flex:1}.stc-map-frame-wrap iframe{height:340px}.stc-map-footer{align-items:flex-start;flex-direction:column}.stc-map-footer .btn{width:100%;justify-content:center}}
+
+
+/* Service detail pages: readable content and real playable video */
+.stc-service-detail-hero{position:relative;overflow:hidden}
+.stc-service-video-section{padding:clamp(44px,6vw,78px) clamp(18px,5vw,76px);background:linear-gradient(180deg,#f5f9ff,#eaf3fc)}
+.stc-service-section-heading{max-width:850px;margin:0 auto 24px;text-align:center}
+.stc-service-section-heading h2{margin:10px 0;color:#10234b;font-size:clamp(1.8rem,3.4vw,2.7rem);line-height:1.15;font-weight:850;letter-spacing:-.04em}
+.stc-service-section-heading p{margin:0;color:#53657d;font-size:15px;line-height:1.75}
+.stc-service-video-frame{max-width:1120px;margin:0 auto;overflow:hidden;border:1px solid #d7e4f2;border-radius:22px;background:#071a32;box-shadow:0 20px 55px rgba(8,32,66,.16)}
+#serviceDetailVideo{display:block;width:100%;max-height:620px;aspect-ratio:16/9;object-fit:cover;background:#071a32}
+.stc-service-video-hint{padding:12px 18px;color:#e5f2ff;background:#0b2443;font-size:12px;line-height:1.5}
+.stc-service-detail-content{display:grid;grid-template-columns:1fr 1fr;gap:clamp(26px,5vw,70px);align-items:start;padding:clamp(48px,7vw,88px) clamp(18px,7vw,100px);background:#fff}
+.stc-service-detail-intro h2,.stc-service-detail-features h2{margin:12px 0 16px;color:#10234b;font-size:clamp(1.8rem,3.4vw,2.7rem);line-height:1.13;font-weight:850;letter-spacing:-.04em}
+.stc-service-detail-intro h2 em{font-style:normal;color:#078fc5}
+.stc-service-detail-intro>p{margin:0;color:#53657d;font-size:15px;line-height:1.9}
+.stc-service-detail-features{padding:26px;border:1px solid #e0e9f3;border-radius:20px;background:#f8fbff;box-shadow:0 10px 30px rgba(16,35,75,.055)}
+.stc-service-detail-features ul{display:grid;gap:13px;list-style:none;margin:20px 0 0;padding:0}
+.stc-service-detail-features li{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid #e7eef6;border-radius:13px;background:#fff}
+.stc-service-detail-features li>span{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:#e6f8f4;color:#078c73;font-weight:900}
+.stc-service-detail-features li>div{display:flex;gap:12px;align-items:flex-start}
+.stc-service-detail-features li b{color:#078fc5;font-size:11px;letter-spacing:.08em;padding-top:3px}
+.stc-service-detail-features li p{margin:0;color:#344861;font-size:13px;line-height:1.65;font-weight:650}
+.stc-service-outcomes{padding:clamp(42px,6vw,70px) clamp(18px,5vw,76px);background:#f5f8fc}
+.stc-service-outcome-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1120px;margin:0 auto}
+.stc-service-outcome-grid article{display:flex;gap:14px;align-items:flex-start;padding:22px;border:1px solid #e0e8f1;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(16,35,75,.045)}
+.stc-service-outcome-grid article>span{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:10px;background:#e9f5ff;color:#087fb4;font-size:11px;font-weight:900}
+.stc-service-outcome-grid p{margin:2px 0 0;color:#4b5e76;font-size:13px;line-height:1.7}
+.stc-service-detail-cta{padding:clamp(32px,5vw,60px);border-radius:22px}
+.stc-service-detail-cta h2{color:#fff}
+.stc-service-detail-cta p{color:rgba(255,255,255,.8);line-height:1.8}
+.service-placement-note{margin-top:25px;padding:20px;border:1px solid #b9e7f4;border-radius:16px;background:#effaff}
+.service-placement-note>b{display:block;color:#075a7c;font-size:14px}
+.service-placement-note p{margin:8px 0 14px;color:#34566a;font-size:13px;line-height:1.75}
+.service-placement-note .btn{min-height:44px}
+.stc-placement-callout{background:linear-gradient(135deg,#f0f8ff,#e7f5ff 58%,#f5fbff);border:1px solid #cfe5f5;color:#102b46;box-shadow:0 16px 40px rgba(14,62,104,.09)}
+.stc-placement-callout h2{color:#102b46}
+.stc-placement-callout p{color:#435b73}
+.stc-placement-callout .eyebrow{color:#087da8}
+.stc-placement-points{border-color:#d5e7f4;background:#fff;box-shadow:0 8px 22px rgba(12,53,87,.055)}
+.stc-placement-points span{color:#23445f}
+@media(max-width:760px){
+ .stc-service-detail-content{grid-template-columns:1fr;padding:44px 18px;gap:26px}
+ .stc-service-outcome-grid{grid-template-columns:1fr;gap:12px}
+ .stc-service-video-section{padding:42px 16px}
+ .stc-service-video-frame{border-radius:14px}
+ #serviceDetailVideo{aspect-ratio:16/10}
+ .stc-service-detail-features{padding:19px}
+}
+@media(prefers-reduced-motion:reduce){.stc-service-detail-content,.stc-service-outcomes{scroll-behavior:auto}}

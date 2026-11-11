@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, "public");

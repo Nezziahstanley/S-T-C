@@ -834,7 +834,7 @@ function renderPageRoute(){
   const status=training?$("#trainingStatus"):$("#contactRouteStatus");const button=$("button[type=submit]",form);if(button)button.disabled=true;if(status)status.textContent="Submitting securely to Stanley Tech Connect…";
   try{const result=await api("/api/enquiries",{method:"POST",body:JSON.stringify({name:d.name,email:d.email,phone:d.phone||"",service:training?"Training Application":"General Enquiry",subject:training?"Training Application — "+d.course:d.subject,message})});if(status)status.textContent=result.message+" Reference: "+result.reference+". For a full student profile, sign in to the STC workspace and choose Student / Trainee / SIWES account.";form.reset();}
   catch(err){if(status)status.textContent=err.message;toast(err.message,true);}finally{if(button)button.disabled=false;}
- });}; bindForm($("#trainingApplyForm"),true);bindForm($("#stcContactRouteForm"),false);
+ });}; bindForm($("#trainingApplyForm"),true);
 }
 window.addEventListener("hashchange",renderPageRoute);
 window.addEventListener("DOMContentLoaded",renderPageRoute);

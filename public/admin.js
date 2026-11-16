@@ -43,7 +43,7 @@ async function authorizeAdmin(session) {
   activeSession = session;
   sessionStorage.setItem("stc_token", session.access_token);
   message("Login successful. Opening the STC admin dashboard…");
-  location.replace("/");
+  location.replace("/?admin=1");
 }
 async function init() {
   $("#year").textContent = new Date().getFullYear();

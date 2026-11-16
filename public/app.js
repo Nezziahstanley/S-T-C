@@ -605,7 +605,9 @@ $("#refreshPortal").addEventListener("click",()=>selectTab(state.currentTab));
   }
   const payment = new URLSearchParams(location.search).get("payment");
   const reference = new URLSearchParams(location.search).get("reference");
-  if (state.token) {
+  state.token = sessionStorage.getItem("stc_token") || state.token;
+  const forceAdminPortal = new URLSearchParams(location.search).get("admin") === "1";
+  if (state.token || forceAdminPortal) {
     await enterPortal();
     if (payment==="verify" && reference) {
       try { const result=await api(`/api/client/payments/verify?reference=${encodeURIComponent(reference)}`);toast(result.message);selectTab("invoices"); }

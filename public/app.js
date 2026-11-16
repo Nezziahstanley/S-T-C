@@ -332,11 +332,28 @@ async function enterPortal() {
   try {
     const me = await api("/api/auth/me");
     state.user = me.user; state.role = me.role; state.accountType = me.profile?.account_type || "client"; state.isAdmin = me.is_admin || me.role !== "client";
+    $("#portal").classList.toggle("admin-console", state.isAdmin);
     $("#userEmail").textContent = me.user.email; $("#userRole").textContent = state.role.replace("_"," ");
     $("#userAvatar").textContent = (me.profile?.full_name || me.user.email).slice(0,1).toUpperCase(); if(me.profile?.avatar_url) $("#userAvatar").style.backgroundImage = "url("+JSON.stringify(me.profile.avatar_url)+")";
     const tabs = state.isAdmin ? adminTabs : clientTabs;
-    $("#portalNav").innerHTML = tabs.map(([id,icon,label]) => `<button data-tab="${id}" class="${id==="overview"?"active":""}">${icon} &nbsp; ${label}</button>`).join("");
-    $$("#portalNav button").forEach(button => button.addEventListener("click", () => selectTab(button.dataset.tab)));
+    $("#portalNav").innerHTML = state.isAdmin
+      ? [
+          ["DASHBOARD",["overview"]],
+          ["OPERATIONS",["enquiries","projects","quotes","invoices","payments","payment-settings","enrollments","tickets"]],
+          ["CONTENT & CREDENTIALS",["services","portfolio","posts","media","certificates","awards"]],
+          ["ADMINISTRATION",["signature","staff","profile","security"]]
+        ].map(group => '<div class="nav-group"><span class="nav-group-label">'+group[0]+'</span>'+group[1].map(id => {
+          const item=tabs.find(entry=>entry[0]===id);
+          return item ? '<button type="button" data-tab="'+item[0]+'" class="'+(item[0]==="overview"?"active":"")+'"><span class="nav-icon" aria-hidden="true">'+item[1]+'</span><span>'+item[2]+'</span></button>' : '';
+        }).join('')+'</div>').join('')
+      : tabs.map(([id,icon,label]) => '<button type="button" data-tab="'+id+'" class="'+(id==="overview"?"active":"")+'">'+icon+' &nbsp; '+label+'</button>').join("");
+    const portalLogo = $(".portal-brand-logo");
+    if (portalLogo) portalLogo.addEventListener("error", () => {
+      portalLogo.hidden = true;
+      const fallback = $(".portal-logo-fallback");
+      if (fallback) fallback.hidden = false;
+    }, { once:true });
+    $("#portalNav button").forEach(button => button.addEventListener("click", () => selectTab(button.dataset.tab)));
     showPortal(true); await selectTab("overview");
   } catch (error) {
     sessionStorage.removeItem("stc_token"); state.token = ""; state.user = null; showPortal(false); toast(error.message, true);

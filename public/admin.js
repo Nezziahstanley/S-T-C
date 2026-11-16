@@ -42,14 +42,8 @@ async function authorizeAdmin(session) {
   }
   activeSession = session;
   sessionStorage.setItem("stc_token", session.access_token);
-  $("#adminWelcome").textContent = "Verified as " + (me.user?.email || "an authorised STC administrator") + ".";
-  $("#adminSuccess").classList.remove("hidden");
-  $("#passwordForm").classList.add("hidden");
-  $("#codeRequestForm").classList.add("hidden");
-  $("#codeVerifyForm").classList.add("hidden");
-  $(".admin-methods").classList.add("hidden");
-  $("#passkeySignIn").classList.add("hidden");
-  message("Your administrator access has been verified.");
+  message("Login successful. Opening the STC admin dashboard…");
+  location.replace("/");
 }
 async function init() {
   $("#year").textContent = new Date().getFullYear();

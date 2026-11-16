@@ -945,3 +945,75 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 .stc-service-image-caption b{font:800 clamp(1.7rem,3vw,2.6rem)/1.08 Manrope;letter-spacing:-.04em}
 .stc-service-image-caption small{font-size:.68rem;letter-spacing:.18em;color:rgba(255,255,255,.82)}
 @media(max-width:760px){.stc-service-detail-art{min-height:260px;border-radius:18px}.stc-service-image-caption{inset:auto 24px 25px}.stc-service-detail-art::before{inset:9px}}
+
+/* STC admin console refresh — isolated from the public website and client portal */
+.portal.admin-console{--admin-line:rgba(180,210,238,.12);min-height:100vh;grid-template-columns:286px minmax(0,1fr);background:#071426;color:#f3f8ff}
+.portal.admin-console .portal-sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:linear-gradient(180deg,#0b1d33,#081729);border-right:1px solid var(--admin-line);padding:26px 17px 20px;box-shadow:12px 0 36px rgba(0,0,0,.12)}
+.portal.admin-console .portal-brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px;border-bottom:1px solid var(--admin-line)}
+.portal.admin-console .portal-brand-logo{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:13px;padding:3px;flex:0 0 auto}
+.portal.admin-console .portal-logo-fallback{width:48px;height:48px;place-items:center;border-radius:13px;background:#123b57;color:#00d2ff;font-weight:900}
+.portal.admin-console .portal-logo-fallback:not([hidden]){display:grid}
+.portal.admin-console .portal-brand .brand-name{color:#f4f8ff;font-size:.7rem;line-height:1.45;letter-spacing:.12em}
+.portal.admin-console .portal-brand .brand-name b{color:#00d2ff}
+.portal.admin-console .portal-label{margin:23px 10px 12px;color:#7189a4;font-size:.58rem;letter-spacing:.17em;font-weight:800}
+.portal.admin-console .portal-sidebar nav{display:grid;gap:16px;overflow:visible}
+.portal.admin-console .nav-group{display:grid;gap:4px}
+.portal.admin-console .nav-group-label{padding:0 11px 5px;color:#7088a3;font-size:.57rem;letter-spacing:.15em;text-transform:uppercase;font-weight:800}
+.portal.admin-console .portal-sidebar nav button{display:flex;align-items:center;gap:11px;min-height:42px;width:100%;padding:9px 11px;border:1px solid transparent;border-radius:10px;background:transparent;color:#aebed0;text-align:left;font-size:.77rem;font-weight:600;transition:background .18s,border-color .18s,color .18s}
+.portal.admin-console .portal-sidebar nav button .nav-icon{display:grid;place-items:center;width:22px;min-width:22px;color:#8ca4bf;font-size:1rem}
+.portal.admin-console .portal-sidebar nav button:hover{background:rgba(0,210,255,.07);color:#fff;border-color:rgba(0,210,255,.12)}
+.portal.admin-console .portal-sidebar nav button:hover .nav-icon{color:#00d2ff}
+.portal.admin-console .portal-sidebar nav button.active{background:linear-gradient(100deg,rgba(0,210,255,.18),rgba(0,210,255,.06));border-color:rgba(0,210,255,.24);color:#fff;box-shadow:inset 3px 0 #00d2ff}
+.portal.admin-console .portal-sidebar nav button.active .nav-icon{color:#00d2ff}
+.portal.admin-console .sidebar-bottom{margin-top:auto;padding:18px 7px 0;border-top:1px solid var(--admin-line)}
+.portal.admin-console .user-mini b{color:#eef6ff;font-size:.69rem}
+.portal.admin-console .user-mini small{color:#00d2ff;font-size:.58rem}
+.portal.admin-console .user-avatar{background:#123b57;color:#7ceaff;border:1px solid rgba(0,210,255,.28)}
+.portal.admin-console .logout-btn{color:#a9bbce;min-height:40px}
+.portal.admin-console .logout-btn:hover{color:#ff9b9b}
+.portal.admin-console .portal-main{min-width:0;background:#071426}
+.portal.admin-console .portal-top{position:sticky;top:0;z-index:10;height:94px;padding:18px clamp(22px,3.5vw,52px);background:rgba(7,20,38,.94);border-bottom:1px solid var(--admin-line);backdrop-filter:blur(16px)}
+.portal.admin-console .portal-top small{color:#00d2ff;font-size:.6rem;font-weight:800;letter-spacing:.16em}
+.portal.admin-console .portal-top h1{color:#f4f8ff;font-size:1.55rem;letter-spacing:-.04em}
+.portal.admin-console .secure-pill{padding:8px 12px;border:1px solid rgba(66,213,165,.2);border-radius:99px;background:rgba(66,213,165,.07);color:#a9d9c8;font-size:.65rem}
+.portal.admin-console .icon-btn{width:40px;height:40px;border:1px solid var(--admin-line);border-radius:11px;background:#10243b;color:#c9d9e9}
+.portal.admin-console .portal-content{padding:28px clamp(22px,3.5vw,52px) 60px;max-width:1680px;margin:0 auto}
+.portal.admin-console .metric-grid{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px;margin-bottom:24px}
+.portal.admin-console .metric-card{position:relative;overflow:hidden;min-height:112px;padding:18px 19px;background:linear-gradient(145deg,#112943,#0d2036);border:1px solid var(--admin-line);border-radius:14px;box-shadow:0 9px 26px rgba(0,0,0,.1);color:#f4f8ff}
+.portal.admin-console .metric-card small{display:block;color:#9eb1c7;font-size:.68rem;text-transform:capitalize}
+.portal.admin-console .metric-card b{margin-top:11px;color:#f4f8ff;font-size:1.85rem;letter-spacing:-.04em}
+.portal.admin-console .panel{margin:0 0 20px;padding:21px;background:#0e2239;border:1px solid var(--admin-line);border-radius:15px;box-shadow:0 12px 32px rgba(0,0,0,.1);color:#f3f8ff}
+.portal.admin-console .panel-head{padding-bottom:13px;border-bottom:1px solid var(--admin-line)}
+.portal.admin-console .panel-head h3{color:#f0f6ff;font-size:.94rem}
+.portal.admin-console .panel-head span{color:#8fa5bc}
+.portal.admin-console .data-table{font-size:.74rem}
+.portal.admin-console .data-table th{color:#8ea8c2;border-bottom-color:var(--admin-line)}
+.portal.admin-console .data-table td{color:#d4e1ee;border-bottom-color:rgba(255,255,255,.06)}
+.portal.admin-console .data-table td b{color:#f3f8ff}
+.portal.admin-console .data-table td small{display:block;margin-top:3px;color:#8fa5bc;font-size:.66rem}
+.portal.admin-console .action-btn{border:1px solid rgba(0,210,255,.2);border-radius:8px;background:rgba(0,210,255,.08);color:#8feaff;padding:7px 10px;font-size:.68rem}
+.portal.admin-console .action-btn:hover{background:rgba(0,210,255,.16);border-color:rgba(0,210,255,.4)}
+.portal.admin-console .empty-state,.portal.admin-console .loading-card{background:#0d2036;border-color:var(--admin-line);color:#a6b8cc}
+.portal.admin-console .portal-form input,.portal.admin-console .portal-form select,.portal.admin-console .portal-form textarea{background:#091a2d;color:#f4f8ff;border-color:var(--admin-line)}
+.portal.admin-console .portal-form label{color:#c5d5e5}
+.portal.admin-console .form-note{color:#a6b8cc}
+.portal.admin-console .portal-content .btn-primary{background:#00d2ff;color:#061a2c}
+.portal.admin-console .portal-content .btn-primary:hover{background:#65e4ff}
+.portal.admin-console .portal-content .signature-pad-wrap{background:#fff;border-radius:12px}
+.portal.admin-console .portal-content .signature-preview{max-width:100%;background:#fff;padding:12px;border-radius:10px}
+.portal.admin-console .portal-sidebar::-webkit-scrollbar{width:5px}
+.portal.admin-console .portal-sidebar::-webkit-scrollbar-thumb{background:#24435f;border-radius:99px}
+@media(max-width:760px){
+ .portal.admin-console{grid-template-columns:1fr}
+ .portal.admin-console .portal-sidebar{position:relative;top:auto;height:auto;max-height:none;padding:14px 5vw;overflow:visible}
+ .portal.admin-console .portal-brand{padding:0 4px 12px}
+ .portal.admin-console .portal-label{margin:13px 8px 8px}
+ .portal.admin-console .portal-sidebar nav{display:flex;gap:15px;overflow-x:auto;padding:0 0 7px}
+ .portal.admin-console .nav-group{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+ .portal.admin-console .nav-group-label{display:none}
+ .portal.admin-console .portal-sidebar nav button{width:auto;min-width:max-content;min-height:40px;padding:8px 11px}
+ .portal.admin-console .sidebar-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px 4px 0}
+ .portal.admin-console .portal-top{position:relative;height:auto;padding:17px 5vw}
+ .portal.admin-console .portal-content{padding:20px 5vw 40px}
+}
+@media(max-width:420px){.portal.admin-console .metric-grid{grid-template-columns:1fr 1fr}.portal.admin-console .metric-card{padding:15px}.portal.admin-console .metric-card b{font-size:1.55rem}}

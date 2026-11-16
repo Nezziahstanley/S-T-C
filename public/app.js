@@ -356,7 +356,15 @@ async function enterPortal() {
     $$("#portalNav button").forEach(button => button.addEventListener("click", () => selectTab(button.dataset.tab)));
     showPortal(true); await selectTab("overview");
   } catch (error) {
-    sessionStorage.removeItem("stc_token"); state.token = ""; state.user = null; showPortal(false); toast(error.message, true);
+    // Keep the verified sign-in token and show the actual startup failure.
+    // This prevents an admin from being silently returned to the public homepage.
+    $("#portal").classList.add("admin-console");
+    $("#portalTitle").textContent = "Admin dashboard";
+    $("#portalKicker").textContent = "STC MANAGEMENT CONSOLE";
+    $("#portalNav").innerHTML = "";
+    $("#portalContent").innerHTML = '<section class="admin-error-state"><span class="admin-error-icon">!</span><div><h3>Admin dashboard could not finish loading</h3><p>'+esc(error.message || "The admin session could not be verified.")+'</p><button class="action-btn" id="retryAdminEntry" type="button">Try again</button></div></section>';
+    showPortal(true);
+    $("#retryAdminEntry")?.addEventListener("click", () => enterPortal());
   }
 }
 async function selectTab(tab) {

@@ -40,11 +40,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://esm.sh"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://*.supabase.co", "https://api.paystack.co"],
+      connectSrc: ["'self'", "https://*.supabase.co", "https://api.paystack.co", "https://esm.sh"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       upgradeInsecureRequests: []
@@ -146,6 +146,14 @@ async function audit(user, action, entity, entityId, details = {}) {
 app.get("/api/health", (_req, res) => res.json({
   ok: true, service: "Stanley Tech Connect", version: "2.0.0"
 }));
+
+app.get("/api/public/auth-config", (_req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return res.status(503).json({ error: "Passkey sign-in is not configured yet." });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY });
+});
 
 app.post("/api/paystack/webhook", async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) return res.sendStatus(503);

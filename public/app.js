@@ -367,7 +367,14 @@ async function selectTab(tab) {
   $("#portalContent").innerHTML = `<div class="loading-card">Loading ${esc(label.toLowerCase())}…</div>`;
   try {
     if (state.isAdmin) await renderAdmin(tab); else await renderClient(tab);
-  } catch (error) { $("#portalContent").innerHTML = `<div class="empty-state">${esc(error.message)}</div>`; }
+  } catch (error) {
+    if (state.isAdmin) {
+      $("#portalContent").innerHTML = '<section class="admin-error-state"><span class="admin-error-icon">!</span><div><h3>This section could not be loaded</h3><p>'+esc(error.message || "Please try again in a moment.")+'</p><button class="action-btn" id="retryAdminSection" type="button">Try again</button></div></section>';
+      $("#retryAdminSection")?.addEventListener("click", () => selectTab(tab));
+    } else {
+      $("#portalContent").innerHTML = '<div class="empty-state">'+esc(error.message)+'</div>';
+    }
+  }
 }
 function table(headers, rows) {
   if (!rows.length) return `<div class="empty-state">Nothing here yet. New records will appear when they are added.</div>`;

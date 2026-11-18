@@ -1022,3 +1022,13 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 .portal.admin-console .admin-error-icon{display:grid;place-items:center;width:32px;height:32px;flex:0 0 auto;border-radius:50%;background:rgba(255,120,120,.14);color:#ff9b9b;font-weight:900}
 .portal.admin-console .admin-error-state h3{margin:2px 0 6px;color:#ffe2e2;font-size:.9rem}
 .portal.admin-console .admin-error-state p{margin:0 0 13px;color:#c6aeb3;font-size:.78rem}
+
+
+/* Public page-to-page navigation */
+.stc-route-nav{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px clamp(18px,5vw,76px);background:rgba(250,250,246,.97);border-bottom:1px solid rgba(25,55,43,.13);box-shadow:0 8px 24px rgba(24,48,37,.07);backdrop-filter:blur(14px)}
+.stc-route-brand{flex:0 0 auto;color:#1c5143;font-size:.72rem;font-weight:900;letter-spacing:.12em}
+.stc-route-links{display:flex;align-items:center;justify-content:flex-end;gap:clamp(10px,1.7vw,24px);flex-wrap:wrap}
+.stc-route-links a{display:inline-flex;align-items:center;min-height:36px;color:#53665b;font-size:.78rem;font-weight:700;white-space:nowrap}
+.stc-route-links a:hover,.stc-route-links a.active{color:#2e7059}
+.stc-route-links a.active{box-shadow:inset 0 -2px #b8e34b}
+@media(max-width:760px){.stc-route-nav{position:sticky;top:0;display:block;padding:10px 5vw}.stc-route-brand{display:block;margin-bottom:7px}.stc-route-links{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:18px;padding-bottom:3px;scrollbar-width:thin}.stc-route-links a{min-height:34px;font-size:.74rem}}

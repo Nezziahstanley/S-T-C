@@ -353,7 +353,7 @@ async function enterPortal() {
       const fallback = $(".portal-logo-fallback");
       if (fallback) fallback.hidden = false;
     }, { once:true });
-    $$$("#portalNav button").forEach(button => button.addEventListener("click", () => selectTab(button.dataset.tab)));
+    $("#portalNav button").forEach(button => button.addEventListener("click", () => selectTab(button.dataset.tab)));
     showPortal(true); await selectTab("overview");
   } catch (error) {
     // Keep the verified sign-in token and show the actual startup failure.
@@ -454,8 +454,8 @@ async function renderClient(tab) {
     const awards=(data.awards||[]).map(x=>'<div class="credential-item"><div><b>'+esc(x.award_title)+'</b><small>'+esc(x.award_type)+' · '+date(x.issued_at)+' · '+esc(x.award_number)+'</small></div><button class="action-btn" data-print-award="'+x.id+'">View / Print</button></div>').join("")||'<div class="empty-state">No awards have been issued to this account yet.</div>';
     $("#portalContent").innerHTML=(p.account_type==="student"?panel("Your STC Student ID Card",'<div class="student-id-preview"><div><b>STC · STUDENT ID</b><h3>'+esc(p.full_name||"Student")+'</h3><p>'+esc(p.student_number||"Student ID pending")+'</p><p>'+esc(p.institution||"")+' · '+esc(p.department||"")+'</p></div>'+(data.avatar_url?'<img src="'+esc(data.avatar_url)+'" alt="Student passport photo">':'<div class="photo-placeholder">STC</div>')+'</div><button class="btn btn-primary" id="printStudentCard">Print / Save ID Card</button>'):"")+panel("My Certificates",'<div class="credential-list">'+certificates+'</div>')+panel("My Awards & Recognition",'<div class="credential-list">'+awards+'</div>');
     $("#printStudentCard")?.addEventListener("click",()=>printStudentCard(p,data.avatar_url));
-    $$$("[data-print-cert]").forEach(b=>b.addEventListener("click",()=>printCredential(data.certificates.find(x=>String(x.id)===b.dataset.printCert),"certificate")));
-    $$$("[data-print-award]").forEach(b=>b.addEventListener("click",()=>printCredential(data.awards.find(x=>String(x.id)===b.dataset.printAward),"award")));
+    $("[data-print-cert]").forEach(b=>b.addEventListener("click",()=>printCredential(data.certificates.find(x=>String(x.id)===b.dataset.printCert),"certificate")));
+    $("[data-print-award]").forEach(b=>b.addEventListener("click",()=>printCredential(data.awards.find(x=>String(x.id)===b.dataset.printAward),"award")));
   } else if (tab === "security") {
     $("#portalContent").innerHTML=panel("Change your password",'<p class="form-note">You cannot view or retrieve an existing password. For your protection, you can set a new one or request a secure reset link.</p><form id="changePasswordForm" class="portal-form"><label>New password<input type="password" name="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><label>Confirm new password<input type="password" name="confirm_password" minlength="10" maxlength="128" autocomplete="new-password" required></label><button class="btn btn-primary" type="submit">Update password</button></form>')+panel("Forgot your password?",'<form id="resetPasswordForm" class="portal-form"><label class="full">Account email<input name="email" type="email" required value="'+esc(state.user.email)+'"></label><button class="btn btn-outline-light" type="submit">Email me a secure reset link</button></form>');
     $("#changePasswordForm").addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget;if(f.elements.password.value!==f.elements.confirm_password.value){toast("The passwords do not match.",true);return;}try{const r=await api("/api/auth/password/update",{method:"POST",body:JSON.stringify({password:f.elements.password.value})});toast(r.message);f.reset();}catch(err){toast(err.message,true);}});
@@ -568,12 +568,12 @@ async function renderAdmin(tab) {
   }
     if(tab==="media") $("#graduatePhotoForm").addEventListener("submit",e=>{e.preventDefault();const form=e.currentTarget,file=form.elements.photo.files[0];if(!file||file.size>8*1024*1024){toast("Choose an image smaller than 8 MB.",true);return;}const reader=new FileReader();reader.onload=async()=>{try{await api("/api/admin/media/upload",{method:"POST",body:JSON.stringify({title:form.elements.title.value,category:form.elements.category.value,description:form.elements.description.value,filename:file.name,content_type:file.type,base64:reader.result,is_featured:form.elements.is_featured.checked})});toast("Photo uploaded to the gallery.");selectTab("media");}catch(err){toast(err.message,true);}};reader.readAsDataURL(file);});
     $$("[data-status]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/${tab}/${button.dataset.status}`,{method:"PATCH",body:JSON.stringify({status:button.dataset.value})});toast("Record updated.");selectTab(tab);}catch(error){toast(error.message,true);}}));
-    $$$("[data-receipt]").forEach(button=>button.addEventListener("click",async()=>{try{const r=await api("/api/admin/payments/"+button.dataset.receipt+"/receipt");window.open(r.url,"_blank","noopener,noreferrer");}catch(error){toast(error.message,true);}}));
-    $$$("[data-review]").forEach(button=>button.addEventListener("click",async()=>{let reason="";if(button.dataset.decision==="reject"){reason=prompt("Reason for rejecting this receipt:")||"";if(!reason.trim())return;}try{const r=await api("/api/admin/payments/"+button.dataset.review+"/verify",{method:"POST",body:JSON.stringify({decision:button.dataset.decision,rejection_reason:reason})});toast(r.message);selectTab("payments");}catch(error){toast(error.message,true);}}));
-    $$$("[data-enrollment]").forEach(button=>button.addEventListener("click",async()=>{try{await api("/api/admin/enrollments/"+button.dataset.enrollment,{method:"PATCH",body:JSON.stringify({status:button.dataset.status})});toast("Student application updated.");selectTab("enrollments");}catch(error){toast(error.message,true);}}));
+    $("[data-receipt]").forEach(button=>button.addEventListener("click",async()=>{try{const r=await api("/api/admin/payments/"+button.dataset.receipt+"/receipt");window.open(r.url,"_blank","noopener,noreferrer");}catch(error){toast(error.message,true);}}));
+    $("[data-review]").forEach(button=>button.addEventListener("click",async()=>{let reason="";if(button.dataset.decision==="reject"){reason=prompt("Reason for rejecting this receipt:")||"";if(!reason.trim())return;}try{const r=await api("/api/admin/payments/"+button.dataset.review+"/verify",{method:"POST",body:JSON.stringify({decision:button.dataset.decision,rejection_reason:reason})});toast(r.message);selectTab("payments");}catch(error){toast(error.message,true);}}));
+    $("[data-enrollment]").forEach(button=>button.addEventListener("click",async()=>{try{await api("/api/admin/enrollments/"+button.dataset.enrollment,{method:"PATCH",body:JSON.stringify({status:button.dataset.status})});toast("Student application updated.");selectTab("enrollments");}catch(error){toast(error.message,true);}}));
     $("#createRecord")?.addEventListener("click",()=>createAdminRecord(tab));
-    $$$("[data-staff]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/staff/${encodeURIComponent(button.dataset.staff)}`,{method:"PATCH",body:JSON.stringify({is_active:button.dataset.active==="true"})});toast("Staff access updated.");selectTab("staff");}catch(error){toast(error.message,true);}}));
-    $$$("[data-publish]").forEach(button=>button.addEventListener("click",async()=>{try{const next=button.dataset.nextStatus;await api(`/api/admin/posts/${button.dataset.publish}`,{method:"PATCH",body:JSON.stringify({status:next,published_at:next==="published"?new Date().toISOString():null})});toast(next==="published"?"Announcement published to the website ticker.":"Post unpublished.");selectTab("posts");}catch(error){toast(error.message,true);}}));
+    $("[data-staff]").forEach(button=>button.addEventListener("click",async()=>{try{await api(`/api/admin/staff/${encodeURIComponent(button.dataset.staff)}`,{method:"PATCH",body:JSON.stringify({is_active:button.dataset.active==="true"})});toast("Staff access updated.");selectTab("staff");}catch(error){toast(error.message,true);}}));
+    $("[data-publish]").forEach(button=>button.addEventListener("click",async()=>{try{const next=button.dataset.nextStatus;await api(`/api/admin/posts/${button.dataset.publish}`,{method:"PATCH",body:JSON.stringify({status:next,published_at:next==="published"?new Date().toISOString():null})});toast(next==="published"?"Announcement published to the website ticker.":"Post unpublished.");selectTab("posts");}catch(error){toast(error.message,true);}}));
   }
 }
 async function createAdminRecord(resource) {
@@ -818,21 +818,21 @@ function renderPageRoute(){
    branch:{label:"Ugep Branch",address:"John Ifere Street, Ntankpo Close, Federal Polytechnic Ugep, Cross River State, Nigeria"}
   };
   const map=$("#stcOfficeMap"),address=$("#stcMapAddress"),directions=$("#stcMapDirections");
-  $$$("#pageView [data-map-office]").forEach(button=>button.addEventListener("click",()=>{
+  $("#pageView [data-map-office]").forEach(button=>button.addEventListener("click",()=>{
    const office=offices[button.dataset.mapOffice];if(!office||!map)return;
    const query=encodeURIComponent(office.address);
    map.src="https://maps.google.com/maps?q="+query+"&z=15&output=embed";
    map.title="Stanley Tech Connect "+office.label+" map";
    address.textContent=office.address;
    directions.href="https://www.google.com/maps/search/?api=1&query="+query;
-   $$$("#pageView [data-map-office]").forEach(item=>item.classList.toggle("active",item===button));
+   $("#pageView [data-map-office]").forEach(item=>item.classList.toggle("active",item===button));
   }));
  }
  if(page==="about"){
   const team=window.stcAboutTeam||[];
   const modal=$("#aboutTeamModal"), content=$("#aboutTeamModalContent");
   const close=()=>{modal?.classList.add("hidden");document.body.classList.remove("about-modal-open");};
-  $$$("#pageView [data-about-member]").forEach(card=>card.addEventListener("click",()=>{
+  $("#pageView [data-about-member]").forEach(card=>card.addEventListener("click",()=>{
    const m=team[Number(card.dataset.aboutMember)];if(!m||!modal||!content)return;
    const gallery=(m.gallery||[]).map((img,i)=>'<figure><img src="/assets/'+img+'" alt="'+esc(m.name)+' — photo '+(i+1)+'" loading="lazy"></figure>').join("");
    content.innerHTML='<div class="lovable-about-modal-hero"><img src="/assets/'+m.img+'" alt="'+esc(m.name)+'"></div><div class="lovable-about-modal-body"><span class="lovable-about-pill">'+esc(m.role)+'</span><h2>'+esc(m.name)+'</h2><p>'+esc(m.bio)+'</p><h3>Skills &amp; Expertise</h3><div class="lovable-about-skill-list">'+m.skills.map(x=>'<span>✓ '+esc(x)+'</span>').join("")+'</div>'+(gallery?'<h3 class="lovable-about-gallery-title">Training Photos &amp; Work</h3><div class="lovable-about-modal-gallery">'+gallery+'</div>':'')+'<div class="lovable-about-actions"><a class="btn btn-primary" href="#page/contact">Contact</a><a class="btn btn-outline-light" href="https://wa.me/2347041145338?text='+encodeURIComponent("Hello "+m.name+", I saw your profile on Stanley Tech Connect and would like to chat.")+'" target="_blank" rel="noreferrer">WhatsApp</a></div></div>';

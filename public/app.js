@@ -323,8 +323,26 @@ async function loadPublic() {
 }
 
 const clientTabs = [
-  ["overview","◫","Overview"],["training","🎓","My training"],["projects","▦","My projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices & payments"],["support","✉","Support"],["credentials","🏅","ID & Certificates"],["security","🔐","Account security"],["profile","◎","My profile"]
+  ["overview","◫","Overview"],["projects","▦","My projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices & payments"],["support","✉","Support"],["security","🔐","Account security"],["profile","◎","My profile"]
 ];
+const studentTabs = [
+  ["overview","◫","Student overview"],["training","🎓","My training"],["invoices","◈","Fees & payments"],["support","✉","Student support"],["credentials","🏅","ID & certificates"],["security","🔐","Account security"],["profile","◎","My profile"]
+];
+const adminRoleResources = {
+  manager:new Set(["enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media","profiles","enrollments","certificates","awards"]),
+  project_manager:new Set(["enquiries","projects","tickets"]),
+  finance:new Set(["quotes","invoices","payments"]),
+  support:new Set(["enquiries","tickets"]),
+  content_editor:new Set(["services","posts","portfolio","media"])
+};
+function currentPortalTabs() {
+  return state.isAdmin ? adminTabs : state.accountType === "student" ? studentTabs : clientTabs;
+}
+function visibleAdminTabs() {
+  if (state.role === "super_admin") return adminTabs;
+  const allowed = adminRoleResources[state.role] || new Set();
+  return adminTabs.filter(([id]) => id === "overview" || id === "profile" || id === "security" || allowed.has(id));
+}
 const adminTabs = [
   ["overview","◫","Overview"],["enquiries","✉","Enquiries"],["projects","▦","Projects"],["quotes","▤","Quotes"],["invoices","◈","Invoices"],["payments","₦","Payment verification"],["payment-settings","⚙","Bank settings"],["enrollments","🎓","Student enrolments"],["certificates","📜","Certificates"],["awards","🏆","Awards"],["signature","✍","Electronic signature"],["tickets","◉","Support tickets"],["services","⌘","Services"],["portfolio","✦","Portfolio"],["posts","▤","Announcements & Posts"],["media","▧","Media library"],["staff","♙","Staff access"],["profile","◎","My profile"],["security","🔐","Account security"]
 ];
@@ -335,17 +353,22 @@ async function enterPortal() {
     $("#portal").classList.toggle("admin-console", state.isAdmin);
     $("#userEmail").textContent = me.user.email; $("#userRole").textContent = state.role.replace("_"," ");
     $("#userAvatar").textContent = (me.profile?.full_name || me.user.email).slice(0,1).toUpperCase(); if(me.profile?.avatar_url) $("#userAvatar").style.backgroundImage = "url("+JSON.stringify(me.profile.avatar_url)+")";
-    const tabs = state.isAdmin ? adminTabs : clientTabs;
+    $("#portal").classList.toggle("student-console", !state.isAdmin && state.accountType === "student");
+    $("#portal").classList.toggle("client-console", !state.isAdmin && state.accountType !== "student");
+    const tabs = state.isAdmin ? visibleAdminTabs() : state.accountType === "student" ? studentTabs : clientTabs;
     $("#portalNav").innerHTML = state.isAdmin
       ? [
           ["DASHBOARD",["overview"]],
-          ["OPERATIONS",["enquiries","projects","quotes","invoices","payments","payment-settings","enrollments","tickets"]],
+          ["OPERATIONS",["enquiries","projects","quotes","invoices","payments","enrollments","tickets"]],
           ["CONTENT & CREDENTIALS",["services","portfolio","posts","media","certificates","awards"]],
-          ["ADMINISTRATION",["signature","staff","profile","security"]]
-        ].map(group => '<div class="nav-group"><span class="nav-group-label">'+group[0]+'</span>'+group[1].map(id => {
-          const item=tabs.find(entry=>entry[0]===id);
-          return item ? '<button type="button" data-tab="'+item[0]+'" class="'+(item[0]==="overview"?"active":"")+'"><span class="nav-icon" aria-hidden="true">'+item[1]+'</span><span>'+item[2]+'</span></button>' : '';
-        }).join('')+'</div>').join('')
+          ["ADMINISTRATION",["payment-settings","signature","staff","profile","security"]]
+        ].map(group => {
+          const links = group[1].map(id => {
+            const item=tabs.find(entry=>entry[0]===id);
+            return item ? '<button type="button" data-tab="'+item[0]+'" class="'+(item[0]==="overview"?"active":"")+'"><span class="nav-icon" aria-hidden="true">'+item[1]+'</span><span>'+item[2]+'</span></button>' : '';
+          }).join('');
+          return links ? '<div class="nav-group"><span class="nav-group-label">'+group[0]+'</span>'+links+'</div>' : '';
+        }).join('')
       : tabs.map(([id,icon,label]) => '<button type="button" data-tab="'+id+'" class="'+(id==="overview"?"active":"")+'">'+icon+' &nbsp; '+label+'</button>').join("");
     const portalLogo = $(".portal-brand-logo");
     if (portalLogo) portalLogo.addEventListener("error", () => {
@@ -368,10 +391,13 @@ async function enterPortal() {
   }
 }
 async function selectTab(tab) {
+  const availableTabs = currentPortalTabs();
+  if (!availableTabs.some(item => item[0] === tab)) tab = "overview";
   state.currentTab = tab;
-  $$("#portalNav button").forEach(button => button.classList.toggle("active", button.dataset.tab === tab));
-  const label = [...(state.isAdmin ? adminTabs : clientTabs)].find(item => item[0] === tab)?.[2] || "Workspace";
-  $("#portalTitle").textContent = label; $("#portalKicker").textContent = state.isAdmin ? "STC MANAGEMENT CONSOLE" : "CLIENT WORKSPACE";
+  $("#portalNav button").forEach(button => button.classList.toggle("active", button.dataset.tab === tab));
+  const label = availableTabs.find(item => item[0] === tab)?.[2] || "Workspace";
+  $("#portalTitle").textContent = label;
+  $("#portalKicker").textContent = state.isAdmin ? "STC MANAGEMENT CONSOLE" : state.accountType === "student" ? "STUDENT LEARNING PORTAL" : "CLIENT WORKSPACE";
   $("#portalContent").innerHTML = `<div class="loading-card">Loading ${esc(label.toLowerCase())}…</div>`;
   try {
     if (state.isAdmin) await renderAdmin(tab); else await renderClient(tab);
@@ -420,8 +446,7 @@ async function renderClient(tab) {
   if (tab === "overview") {
     const totalDue = data.invoices.filter(x=>x.status!=="paid").reduce((n,x)=>n+Number(x.amount||0),0);
     $("#portalContent").innerHTML = `
-      <div class="metric-grid"><div class="metric-card"><small>Active projects</small><b>${data.projects.length}</b></div><div class="metric-card"><small>Quotes received</small><b>${data.quotes.length}</b></div><div class="metric-card"><small>Open invoices</small><b>${data.invoices.filter(x=>x.status!=="paid").length}</b></div><div class="metric-card"><small>Outstanding balance</small><b>${money(totalDue)}</b></div></div>
-      ${data.profile?.account_type==="student" ? `<div class="metric-grid"><div class="metric-card"><small>STC Student ID</small><b>${esc(data.profile.student_number||"Pending")}</b></div><div class="metric-card"><small>Training applications</small><b>${data.enrollments.length}</b></div><div class="metric-card"><small>Certificates</small><b>${data.certificates.length}</b></div><div class="metric-card"><small>Awards</small><b>${data.awards.length}</b></div></div>` : ""}
+      ${data.profile?.account_type==="student" ? `<div class="student-welcome panel"><div><span class="eyebrow">WELCOME TO STC</span><h2>${esc(data.profile.full_name||"Student")}</h2><p>${esc(data.profile.institution||"Your learning journey starts here")} · ${esc(data.profile.department||"Student account")}</p></div><strong>${esc(data.profile.student_number||"STUDENT ID PENDING")}</strong></div><div class="metric-grid"><div class="metric-card"><small>Training applications</small><b>${data.enrollments.length}</b></div><div class="metric-card"><small>Certificates earned</small><b>${data.certificates.length}</b></div><div class="metric-card"><small>Awards received</small><b>${data.awards.length}</b></div><div class="metric-card"><small>Outstanding fees</small><b>${money(totalDue)}</b></div></div>` : `<div class="metric-grid"><div class="metric-card"><small>Active projects</small><b>${data.projects.length}</b></div><div class="metric-card"><small>Quotes received</small><b>${data.quotes.length}</b></div><div class="metric-card"><small>Open invoices</small><b>${data.invoices.filter(x=>x.status!=="paid").length}</b></div><div class="metric-card"><small>Outstanding balance</small><b>${money(totalDue)}</b></div></div>`}
       ${panel("Project progress", table(["PROJECT","SERVICE","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.service||"—")}</td><td>${Number(x.progress||0)}%</td><td>${status(x.status)}</td></tr>`)))}
       ${panel("Recent notifications", data.notifications.length?`<div class="list-stack">${data.notifications.slice(0,5).map(x=>`<div class="list-row"><div><b>${esc(x.title)}</b><small>${esc(x.body)} · ${date(x.created_at)}</small></div>${x.read_at?"":`<button class="action-btn" data-read="${x.id}">Mark read</button>`}</div>`).join("")}</div>`:`<div class="empty-state">You're all caught up.</div>`)}`;
     $$("[data-read]").forEach(button=>button.addEventListener("click",async()=>{await api(`/api/client/notifications/${button.dataset.read}/read`,{method:"PATCH"});selectTab("overview");}));
@@ -480,10 +505,22 @@ async function renderAdmin(tab) {
     $("#bankSettingsForm").addEventListener("submit",async event=>{event.preventDefault();try{await api("/api/admin/payment-settings",{method:"PUT",body:JSON.stringify(Object.fromEntries(new FormData(event.currentTarget)))});toast("Bank details saved.");}catch(error){toast(error.message,true);}}); return;
   }
   if (tab === "overview") {
-    const data = await api("/api/admin/dashboard");
-    $("#portalContent").innerHTML = `<div class="metric-grid">${Object.entries(data.metrics).map(([key,value])=>`<div class="metric-card"><small>${esc(key)}</small><b>${value}</b></div>`).join("")}</div>
-      ${panel("Latest enquiries",table(["CLIENT","SERVICE","RECEIVED","STATUS"],data.enquiries.map(x=>`<tr><td><b>${esc(x.name)}</b><small>${esc(x.email)}</small></td><td>${esc(x.service)}</td><td>${date(x.created_at)}</td><td>${status(x.status)}</td></tr>`)))}
-      ${panel("Latest projects",table(["PROJECT","CLIENT ID","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.client_user_id)}</td><td>${x.progress||0}%</td><td>${status(x.status)}</td></tr>`)))}`;
+    if (state.role === "super_admin" || state.role === "manager") {
+      const data = await api("/api/admin/dashboard");
+      $("#portalContent").innerHTML = `<div class="metric-grid">${Object.entries(data.metrics).map(([key,value])=>`<div class="metric-card"><small>${esc(key)}</small><b>${value}</b></div>`).join("")}</div>
+        ${panel("Latest enquiries",table(["CLIENT","SERVICE","RECEIVED","STATUS"],data.enquiries.map(x=>`<tr><td><b>${esc(x.name)}</b><small>${esc(x.email)}</small></td><td>${esc(x.service)}</td><td>${date(x.created_at)}</td><td>${status(x.status)}</td></tr>`)))}
+        ${panel("Latest projects",table(["PROJECT","CLIENT ID","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.client_user_id)}</td><td>${x.progress||0}%</td><td>${status(x.status)}</td></tr>`)))};
+    } else {
+      const resources = [...(adminRoleResources[state.role] || [])];
+      const results = await Promise.all(resources.map(async resource => {
+        try { const result = await api("/api/admin/" + resource); return [resource, result.items || []]; }
+        catch (_) { return [resource, []]; }
+      }));
+      const labels = {enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support tickets",services:"Services",posts:"Posts",portfolio:"Portfolio items",media:"Media files"};
+      const totals = results.map(([key,items]) => '<div class="metric-card"><small>'+esc(labels[key]||key)+'</small><b>'+items.length+'</b></div>').join("");
+      const recent = results.filter(([,items])=>items.length).map(([key,items]) => panel(labels[key]||key, '<div class="list-stack">'+items.slice(0,4).map(item => '<div class="list-row"><div><b>'+esc(item.title||item.name||item.subject||item.reference||item.course_name||labels[key]||"Record")+'</b><small>'+esc(item.status||item.email||item.service||"Latest record")+'</small></div><span>'+date(item.created_at)+'</span></div>').join("")+'</div>')).join("");
+      $("#portalContent").innerHTML = '<div class="metric-grid">'+totals+'</div>'+recent;
+    }
   } else {
     const result = await api(`/api/admin/${tab}`); const items = result.items || [];
     const configs = {

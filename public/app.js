@@ -509,7 +509,7 @@ async function renderAdmin(tab) {
       const data = await api("/api/admin/dashboard");
       $("#portalContent").innerHTML = `<div class="metric-grid">${Object.entries(data.metrics).map(([key,value])=>`<div class="metric-card"><small>${esc(key)}</small><b>${value}</b></div>`).join("")}</div>
         ${panel("Latest enquiries",table(["CLIENT","SERVICE","RECEIVED","STATUS"],data.enquiries.map(x=>`<tr><td><b>${esc(x.name)}</b><small>${esc(x.email)}</small></td><td>${esc(x.service)}</td><td>${date(x.created_at)}</td><td>${status(x.status)}</td></tr>`)))}
-        ${panel("Latest projects",table(["PROJECT","CLIENT ID","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.client_user_id)}</td><td>${x.progress||0}%</td><td>${status(x.status)}</td></tr>`)))};
+        ${panel("Latest projects",table(["PROJECT","CLIENT ID","PROGRESS","STATUS"],data.projects.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>${esc(x.client_user_id)}</td><td>${x.progress||0}%</td><td>${status(x.status)}</td></tr>`)))};`
     } else {
       const resources = [...(adminRoleResources[state.role] || [])];
       const results = await Promise.all(resources.map(async resource => {

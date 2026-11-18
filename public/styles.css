@@ -1032,3 +1032,10 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 .stc-route-links a:hover,.stc-route-links a.active{color:#2e7059}
 .stc-route-links a.active{box-shadow:inset 0 -2px #b8e34b}
 @media(max-width:760px){.stc-route-nav{position:sticky;top:0;display:block;padding:10px 5vw}.stc-route-brand{display:block;margin-bottom:7px}.stc-route-links{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:18px;padding-bottom:3px;scrollbar-width:thin}.stc-route-links a{min-height:34px;font-size:.74rem}}
+
+
+/* Contact form submission feedback */
+#stcContactRouteForm .form-status{display:none;margin:4px 0 0;padding:16px 18px;border-radius:14px;font-size:.9rem;font-weight:650;line-height:1.65}
+#stcContactRouteForm .form-status.is-success{display:block;color:#166534;background:#f0fdf4;border:1px solid #86efac;box-shadow:0 8px 22px rgba(22,101,52,.08)}
+#stcContactRouteForm .form-status.is-error{display:block;color:#991b1b;background:#fef2f2;border:1px solid #fca5a5}
+#stcContactRouteForm .form-status.is-success::before{content:"✓";display:inline-grid;place-items:center;width:25px;height:25px;margin-right:9px;border-radius:50%;background:#dcfce7;color:#15803d;font-weight:900}

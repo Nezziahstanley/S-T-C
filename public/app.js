@@ -693,7 +693,12 @@ function renderServiceRoute(){
  window.scrollTo({top:0,behavior:"instant"});
 }
 function renderPageRoute(){
- const m=(location.hash||"").match(/^#page\/([^?]+)/);if(!m){renderServiceRoute();return;}
+ const m=(location.hash||"").match(/^#page\/([^?]+)/);
+ if(!m){
+  renderServiceRoute();
+  if(!location.hash||location.hash==="#home") requestAnimationFrame(()=>document.querySelector("#home")?.scrollIntoView({behavior:"instant",block:"start"}));
+  return;
+ }
  const page=decodeURIComponent(m[1]).toLowerCase();
  const services=window.stcServices||[];
  const catalogue=services.length?services:[
@@ -804,9 +809,9 @@ function renderPageRoute(){
  };
  if(!pages[page]){location.hash="#page/services";return;}
  $("#publicSite").classList.add("hidden");$("#pageView").classList.remove("hidden");
- const pageLinks=[["Home","#home"],["About Us","#page/about"],["Services","#page/services"],["Portfolio","#page/portfolio"],["Training","#page/training"],["Graduates","#page/graduates"],["Contact","#page/contact"]];
- const pageNavigation='<section class="route-section stc-page-navigation"><div class="section-head"><div><span class="eyebrow">EXPLORE STC</span><h2>Continue exploring</h2><p>Discover more from Stanley Tech Connect.</p></div></div><div class="stc-page-navigation-grid">'+pageLinks.map(([label,href])=>'<a class="service-card stc-page-link" href="'+href+'"><h3>'+label+'</h3><span class="service-more">Explore ↗</span></a>').join("")+'</div></section>';
- $("#pageView").innerHTML=pages[page]()+pageNavigation;$("#siteFooter").classList.remove("hidden");
+ const pageLinks=[["Home","#home"],["About","#page/about"],["Services","#page/services"],["Portfolio","#page/portfolio"],["Training","#page/training"],["Graduates","#page/graduates"],["Contact","#page/contact"]];
+ const pageNavigation='<nav class="stc-route-nav" aria-label="Main site navigation"><a class="stc-route-brand" href="#home">STANLEY TECH CONNECT</a><div class="stc-route-links">'+pageLinks.map(([label,href])=>'<a href="'+href+'"'+(href==="#page/"+page?' class="active" aria-current="page"':'')+'>'+label+'</a>').join("")+'</div></nav>';
+ $("#pageView").innerHTML=pageNavigation+pages[page]();$("#siteFooter").classList.remove("hidden");
  if(page==="contact"){
   const offices={
    head:{label:"Head Office",address:"No. 17 Hon. Dr. Alex Egbona Road, Agbara Ekureku, Abi LGA, Cross River State, Nigeria"},

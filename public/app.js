@@ -209,16 +209,16 @@ document.addEventListener("submit", async event => {
   const button = form.querySelector('button[type="submit"]');
   const status = form.querySelector("#contactRouteStatus");
   if (button) button.disabled = true;
-  if (status) status.textContent = "Sending your message securely…";
+  if (status) { status.className = "form-status"; status.textContent = "Sending your message securely…"; }
   try {
     const body = Object.fromEntries(new FormData(form));
     body.service = body.subject || "General enquiry";
     const result = await api("/api/enquiries", { method: "POST", body: JSON.stringify(body) });
-    if (status) status.textContent = result.message + " Reference: STC-" + result.reference;
+    if (status) { status.className = "form-status is-success"; status.textContent = result.message + " Reference: STC-" + result.reference; status.setAttribute("role", "status"); }
     form.reset();
     toast("Your message has been submitted successfully.");
   } catch (error) {
-    if (status) status.textContent = error.message || "We could not submit your message. Please try again.";
+    if (status) { status.className = "form-status is-error"; status.textContent = error.message || "We could not submit your message. Please try again."; status.setAttribute("role", "alert"); }
     toast(error.message || "Message submission failed.", true);
   } finally {
     if (button) button.disabled = false;

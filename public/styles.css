@@ -1039,3 +1039,12 @@ h1,h2,h3,h4,.brand-name{font-family:"Inter",sans-serif}
 #stcContactRouteForm .form-status.is-success{display:block;color:#166534;background:#f0fdf4;border:1px solid #86efac;box-shadow:0 8px 22px rgba(22,101,52,.08)}
 #stcContactRouteForm .form-status.is-error{display:block;color:#991b1b;background:#fef2f2;border:1px solid #fca5a5}
 #stcContactRouteForm .form-status.is-success::before{content:"✓";display:inline-grid;place-items:center;width:25px;height:25px;margin-right:9px;border-radius:50%;background:#dcfce7;color:#15803d;font-weight:900}
+
+/* Student workspace identity and responsive welcome panel */
+.portal.student-console .student-welcome{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:26px 30px;margin-bottom:22px;border:1px solid rgba(68,190,166,.28);border-radius:18px;background:linear-gradient(125deg,#102c3c,#145b55);color:#f4fffc;box-shadow:0 14px 34px rgba(9,44,52,.16)}
+.portal.student-console .student-welcome .eyebrow{color:#8de4ce;font-size:.68rem;font-weight:800;letter-spacing:.16em}
+.portal.student-console .student-welcome h2{margin:8px 0 5px;color:#fff;font-size:clamp(1.35rem,3vw,2rem)}
+.portal.student-console .student-welcome p{margin:0;color:#c6e8e0;font-size:.86rem}
+.portal.student-console .student-welcome strong{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 15px;border:1px solid rgba(173,246,223,.35);border-radius:10px;background:rgba(255,255,255,.08);color:#c8ffed;font-size:.72rem;letter-spacing:.08em;white-space:nowrap}
+.portal.client-console .portal-title{color:inherit}
+@media(max-width:600px){.portal.student-console .student-welcome{align-items:flex-start;flex-direction:column;padding:21px}.portal.student-console .student-welcome strong{white-space:normal}}

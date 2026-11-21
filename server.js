@@ -103,6 +103,17 @@ async function requireUser(req, res, next) {
   next();
 }
 
+async function resolveAccountRole(user) {
+  const email = clean(user.email).toLowerCase();
+  if (adminEmail && email === adminEmail) return "super_admin";
+  const [{ data: staff }, { data: profile }] = await Promise.all([
+    db.from("stc_staff_roles").select("role,is_active").eq("user_id", user.id).maybeSingle(),
+    db.from("stc_profiles").select("account_type").eq("user_id", user.id).maybeSingle()
+  ]);
+  if (staff?.is_active) return staff.role;
+  return profile?.account_type === "student" ? "student" : "client";
+}
+
 async function requireStaff(req, res, next) {
   const user = await verifiedUser(req);
   if (!user) return res.status(401).json({ error: "Please sign in to continue." });
@@ -296,6 +307,46 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
   });
 });
 
+// Email/password registration for student and client accounts. Staff access is assigned by an administrator.
+app.post("/api/auth/register", authLimiter, async (req, res) => {
+  const full_name = clean(req.body?.full_name);
+  const email = clean(req.body?.email).toLowerCase();
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const company = clean(req.body?.company);
+  if (!full_name || full_name.length > 120 || !validEmail(email) || password.length < 10 || password.length > 128 || !account_type ||
+      phone.length > 40 || institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Complete the required fields and use a password of at least 10 characters." });
+  }
+  if (account_type === "student" && (!institution || !department || !study_level)) {
+    return res.status(400).json({ error: "Students must provide their institution, department and study level." });
+  }
+  const redirectTo = (STC_PUBLIC_URL || "https://stanley-tech-connect.onrender.com").replace(/\/$/, "") + "/?account-verified=1";
+  const { data, error } = await authClient.auth.signUp({
+    email, password,
+    options: { data: { full_name, account_type }, emailRedirectTo: redirectTo }
+  });
+  if (error || !data?.user) return sendError(res, error || new Error("Registration could not be completed."), 400);
+  const profile = {
+    user_id: data.user.id, full_name, account_type, phone, institution, department, study_level, company
+  };
+  if (account_type === "student") profile.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  const { error: profileError } = await db.from("stc_profiles").upsert(profile, { onConflict: "user_id" });
+  if (profileError) {
+    console.error("Registration profile setup:", profileError.message);
+    return res.status(500).json({ error: "Your account was created, but your profile setup needs assistance. Please contact STC support." });
+  }
+  res.status(201).json({
+    message: data.session ? "Your STC account is ready. You can now sign in." : "Registration received. Check your email to confirm your account before signing in.",
+    confirmation_required: !data.session,
+    account_type
+  });
+});
+
 // Email OTP and password authentication
 app.post("/api/auth/password/sign-in", authLimiter, async (req,res) => {
   const email=clean(req.body?.email).toLowerCase(), password=typeof req.body?.password==="string"?req.body.password:"";
@@ -305,9 +356,8 @@ app.post("/api/auth/password/sign-in", authLimiter, async (req,res) => {
   const user=data.user;
   const {error:profileError}=await db.from("stc_profiles").upsert({user_id:user.id,full_name:clean(user.user_metadata?.full_name)||email.split("@")[0]},{onConflict:"user_id",ignoreDuplicates:true});
   if(profileError)console.error("Profile setup:",profileError.message);
-  const isAdmin=Boolean(adminEmail&&email===adminEmail);
-  const {data:staff}=await db.from("stc_staff_roles").select("role,is_active").eq("user_id",user.id).maybeSingle();
-  res.json({access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at,user:{id:user.id,email:user.email},role:isAdmin?"super_admin":(staff?.is_active?staff.role:"client"),is_admin:isAdmin});
+  const role = await resolveAccountRole(user);
+  res.json({access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at,user:{id:user.id,email:user.email},role,is_admin:role==="super_admin"});
 });
 app.post("/api/auth/request-code", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
@@ -331,30 +381,44 @@ app.post("/api/auth/verify-code", authLimiter, async (req, res) => {
     user_id: user.id, full_name: clean(user.user_metadata?.full_name) || email.split("@")[0]
   }, { onConflict: "user_id", ignoreDuplicates: true });
   if (profileError) console.error("Profile setup:", profileError.message);
-  const isAdmin = Boolean(adminEmail && email === adminEmail);
-  const { data: staff } = await db.from("stc_staff_roles")
-    .select("role,is_active").eq("user_id", user.id).maybeSingle();
+  const role = await resolveAccountRole(user);
   res.json({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_at: data.session.expires_at,
     user: { id: user.id, email: user.email },
-    role: isAdmin ? "super_admin" : (staff?.is_active ? staff.role : "client"),
-    is_admin: isAdmin
+    role,
+    is_admin: role === "super_admin"
   });
 });
 app.get("/api/auth/me", requireUser, async (req, res) => {
   const { data: profile } = await db.from("stc_profiles")
     .select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", req.user.id).maybeSingle();
-  const email = clean(req.user.email).toLowerCase();
-  const isAdmin = Boolean(adminEmail && email === adminEmail);
-  const { data: staff } = await db.from("stc_staff_roles")
-    .select("role,is_active").eq("user_id", req.user.id).maybeSingle();
+  const role = await resolveAccountRole(req.user);
   res.json({
     user: { id: req.user.id, email: req.user.email }, profile,
-    role: isAdmin ? "super_admin" : (staff?.is_active ? staff.role : "client"),
-    is_admin: isAdmin
+    role,
+    is_admin: role === "super_admin"
   });
+});
+
+// Student dashboard data is isolated to the authenticated student's own records.
+app.get("/api/student/dashboard", requireUser, async (req, res) => {
+  const uid = req.user.id;
+  const { data: profile, error: profileError } = await db.from("stc_profiles")
+    .select("full_name,phone,institution,department,study_level,student_number,avatar_key,account_type")
+    .eq("user_id", uid).maybeSingle();
+  if (profileError) return sendError(res, profileError, 500);
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const results = await Promise.all([
+    db.from("stc_training_enrollments").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
+    db.from("stc_notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(30),
+    db.from("stc_certificates").select("id,certificate_number,course_name,issued_at,status").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),
+    db.from("stc_awards").select("id,award_number,award_title,issued_at,status").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false })
+  ]);
+  const error = results.find(item => item.error)?.error;
+  if (error) return sendError(res, error, 500);
+  res.json({ profile: profile || {}, enrollments: results[0].data || [], notifications: results[1].data || [], certificates: results[2].data || [], awards: results[3].data || [] });
 });
 
 // Client portal

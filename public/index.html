@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261118-dashboards-v1">
-  <script defer src="/app.js?v=20261118-dashboard-fix"></script>
+  <link rel="stylesheet" href="/styles.css?v=20261121-public-only">
+  <script defer src="/app.js?v=20261121-public-only"></script>
 </head>
 <body>
   <div id="toast" class="toast" role="status"></div>
@@ -24,7 +24,6 @@
       <a href="#home">Home</a><a href="#page/about">About</a><a href="#page/services">Services</a><a href="#page/portfolio">Portfolio</a><a href="#page/training">Training</a><a href="#page/graduates">Graduates</a><a href="#page/contact">Contact</a>
     </nav>
     <div class="top-actions">
-      <button class="btn btn-outline-light" id="openLogin" type="button" aria-label="Open student and client portal">Student / Client Portal</button>
       <a class="btn btn-primary" href="#page/contact">Get Started</a>
     </div>
   </header>
@@ -115,11 +114,6 @@
 
   <div id="pageView" class="page-view hidden" aria-live="polite"></div>
 
-  <section id="portal" class="portal hidden">
-    <aside class="portal-sidebar"><a class="brand portal-brand" href="#" id="portalBrand"><img class="portal-brand-logo" src="/assets/logo.png" alt="Stanley Tech Connect logo" width="48" height="48"><span class="portal-logo-fallback" hidden>STC</span><span class="brand-name">STANLEY TECH<br><b>CONNECT</b></span></a><div class="portal-label">MANAGEMENT WORKSPACE</div><nav id="portalNav"></nav><div class="sidebar-bottom"><div class="user-mini"><div class="user-avatar" id="userAvatar">S</div><div><b id="userEmail">Signed in</b><small id="userRole">CLIENT</small></div></div><button id="logoutBtn" class="logout-btn">↪ Sign out</button></div></aside>
-    <div class="portal-main"><header class="portal-top"><div><small id="portalKicker">STC WORKSPACE</small><h1 id="portalTitle">Overview</h1></div><div class="portal-top-right"><span class="secure-pill">● Secure workspace</span><button class="icon-btn" id="refreshPortal" aria-label="Refresh">↻</button></div></header><div id="portalContent" class="portal-content"><div class="loading-card">Loading your workspace…</div></div></div>
-  </section>
-
   <footer class="site-footer" id="siteFooter">
     <div class="footer-grid">
       <div class="footer-about">
@@ -131,10 +125,8 @@
       <div><h3>Our Services</h3><ul><li><a href="#service/web-development">Web Development</a></li><li><a href="#service/graphic-design">Graphic Design</a></li><li><a href="#service/computer-training">Computer Training</a></li><li><a href="#service/data-analysis-training">Data Analysis Training</a></li><li><a href="#service/virtual-assistant-training">Virtual Assistant Training</a></li><li><a href="#service/siwes-it-placement">SIWES / IT Placement</a></li><li><a href="#service/it-consulting">IT Consulting</a></li><li><a href="#service/student-project-support">Student Project Support</a></li><li><a href="#service/computer-repairs">Computer Repairs</a></li></ul></div>
       <div><h3>Get In Touch</h3><ul class="footer-contact"><li><span>☎</span><a href="tel:+2347041145338">07041145338</a></li><li><span>✉</span><a href="mailto:stanleytechconnect@gmail.com">stanleytechconnect@gmail.com</a></li><li><span>⌖</span><span><b>Head Office</b>No. 17 Hon. Dr. Alex Egbona Road, Agbara Ekureku, Abi LGA, Cross River State</span></li><li><span>⌖</span><span><b>Branch Office</b>John Ifere Street, Ntankpo Close, Federal Polytechnic Ugep, Cross River State</span></li></ul></div>
     </div>
-    <div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All Rights Reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span><button id="footerLogin">Student, client & staff portal ↗</button></div>
+    <div class="footer-bottom"><span>© <span id="year"></span> Stanley Tech Connect. All Rights Reserved.</span><span>LEARN • BUILD • CREATE • CONNECT</span></div>
   </footer>
 
-  <dialog id="loginDialog" class="login-dialog"><button class="dialog-close" id="closeLogin" aria-label="Close">×</button><div class="login-brand"><img class="login-brand-logo" src="/assets/logo.png" alt="Stanley Tech Connect logo" width="58" height="58"><div class="eyebrow">STANLEY TECH CONNECT<br>SECURE WORKSPACE</div></div><h2 id="loginTitle">Welcome to your<br><em>STC workspace.</em></h2><p id="loginHint">Enter your email and we'll send you a secure six-digit sign-in code.</p><form id="requestCodeForm"><label>Email address<input id="loginEmail" type="email" required value="stanleytechconnect@gmail.com" placeholder="you@example.com" autocomplete="username"></label><button class="btn btn-primary btn-large" type="submit">Send sign-in code ↗</button></form><button type="button" class="text-button" id="usePasswordLogin">Already have a password? Sign in with password</button><form id="passwordLoginForm" class="hidden"><label>Password<input id="loginPassword" type="password" required autocomplete="current-password"></label><button class="btn btn-primary btn-large" type="submit">Sign in securely ↗</button><button type="button" class="text-button" id="useEmailCode">Use email verification code instead</button><button type="button" class="text-button" id="forgotPasswordFromLogin">Forgot password?</button></form><form id="verifyCodeForm" class="hidden"><label>Six-digit code<input id="loginCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000" autocomplete="one-time-code"></label><button class="btn btn-primary btn-large" type="submit">Verify & continue ↗</button><button type="button" class="text-button" id="changeEmail">Use a different email</button></form><p id="loginStatus" class="form-status" aria-live="polite"></p><small class="login-foot">Your account is protected by email verification.</small></dialog>
-  <dialog id="passwordResetDialog" class="login-dialog"><button class="dialog-close" id="cancelPasswordReset" type="button" aria-label="Close">×</button><div class="login-brand"><img class="login-brand-logo" src="/assets/logo.png" alt="Stanley Tech Connect logo" width="58" height="58"><div class="eyebrow">STANLEY TECH CONNECT<br>SECURE PASSWORD RESET</div></div><h2>Set a new<br><em>password.</em></h2><p>Choose a new password for your STC account. Existing passwords cannot be viewed or retrieved.</p><form id="passwordResetForm"><label>New password<input type="password" name="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><label>Confirm password<input type="password" name="confirm_password" minlength="10" maxlength="128" autocomplete="new-password" required></label><button class="btn btn-primary btn-large" type="submit">Save new password</button></form></dialog>
 </body>
 </html>

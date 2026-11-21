@@ -154,11 +154,11 @@
   }
   function renderChangePassword() {
     showAccount(shell(
-      '<span class="stc-auth-kicker">ACCOUNT SECURITY</span><h2>Change password</h2><p class="stc-auth-subtitle">Choose a strong password you have not used elsewhere.</p><form id="stcChangeForm" class="stc-auth-form">'+field("New password","password","password","At least 10 characters",'required minlength="10" maxlength="128" autocomplete="new-password"')+field("Confirm new password","confirm_password","password","Enter it again",'required minlength="10" maxlength="128" autocomplete="new-password"')+'<button class="stc-auth-submit" type="submit">Save new password <span>→</span></button>'+status("stcChangeFormStatus")+'</form><p class="stc-auth-footnote"><a href="#dashboard">← Back to dashboard</a></p>'
+      '<span class="stc-auth-kicker">ACCOUNT SECURITY</span><h2>Change password</h2><p class="stc-auth-subtitle">Confirm your current password before choosing a new one.</p><form id="stcChangeForm" class="stc-auth-form">'+field("Current password","current_password","password","Enter your current password",'required autocomplete="current-password"')+field("New password","password","password","At least 10 characters",'required minlength="10" maxlength="128" autocomplete="new-password"')+field("Confirm new password","confirm_password","password","Enter it again",'required minlength="10" maxlength="128" autocomplete="new-password"')+'<button class="stc-auth-submit" type="submit">Save new password <span>→</span></button>'+status("stcChangeFormStatus")+'</form><p class="stc-auth-footnote"><a href="#dashboard">← Back to dashboard</a></p>'
     ));
     bindForm("stcChangeForm", async data => {
       if (data.get("password") !== data.get("confirm_password")) throw new Error("The passwords do not match.");
-      const result = await request("/api/auth/password/update", { method:"POST", body:JSON.stringify({ password:data.get("password") }) });
+      const result = await request("/api/auth/password/change", { method:"POST", body:JSON.stringify({ current_password:data.get("current_password"), password:data.get("password") }) });
       setStatus("stcChangeFormStatus", result.message);
     });
   }

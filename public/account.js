@@ -13,7 +13,21 @@
   async function request(url, options = {}, bearer = token()) {
     const headers = { "Content-Type":"application/json", ...(options.headers || {}) };
     if (bearer) headers.Authorization = "Bearer " + bearer;
-    const response = await fetch(url, { ...options, headers });
+    let response = await fetch(url, { ...options, headers });
+    if (response.status === 401 && bearer && bearer === token() && sessionStorage.getItem(refreshKey) && url !== "/api/auth/refresh") {
+      const refreshResponse = await fetch("/api/auth/refresh", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ refresh_token:sessionStorage.getItem(refreshKey) })
+      });
+      const refreshed = await refreshResponse.json().catch(() => ({}));
+      if (refreshResponse.ok && refreshed.access_token) {
+        saveSession(refreshed);
+        headers.Authorization = "Bearer " + refreshed.access_token;
+        response = await fetch(url, { ...options, headers });
+      } else {
+        clearSession();
+      }
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "The request could not be completed.");
     return data;

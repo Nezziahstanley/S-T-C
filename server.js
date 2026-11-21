@@ -341,9 +341,16 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
     return res.status(500).json({ error: "Your account was created, but your profile setup needs assistance. Please contact STC support." });
   }
   res.status(201).json({
-    message: data.session ? "Your STC account is ready. You can now sign in." : "Registration received. Check your email to confirm your account before signing in.",
+    message: data.session ? "Your STC account is ready." : "Registration received. Check your email to confirm your account before signing in.",
     confirmation_required: !data.session,
-    account_type
+    account_type,
+    ...(data.session ? {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_at: data.session.expires_at,
+      user: { id: data.user.id, email: data.user.email },
+      role: account_type
+    } : {})
   });
 });
 

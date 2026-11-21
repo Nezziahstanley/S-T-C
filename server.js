@@ -629,6 +629,21 @@ app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
   if (error) return sendError(res, error, 400);
   res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });
 });
+app.post("/api/auth/password/change", requireUser, authLimiter, async (req, res) => {
+  const current_password = typeof req.body?.current_password === "string" ? req.body.current_password : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (!current_password || password.length < 10 || password.length > 128) {
+    return res.status(400).json({ error: "Enter your current password and a new password of at least 10 characters." });
+  }
+  const { error: verifyError } = await authClient.auth.signInWithPassword({
+    email: req.user.email, password: current_password
+  });
+  if (verifyError) return res.status(400).json({ error: "Your current password is incorrect." });
+  const { error } = await db.auth.admin.updateUserById(req.user.id, { password });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "change_password", "auth_user", req.user.id, {});
+  res.json({ message: "Your password has been changed successfully." });
+});
 app.post("/api/auth/password/update", requireUser, authLimiter, async (req, res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (password.length < 10 || password.length > 128) return res.status(400).json({ error: "Use a password between 10 and 128 characters." });

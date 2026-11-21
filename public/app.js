@@ -528,7 +528,7 @@ function renderPageRoute(){
   e.preventDefault();const d=Object.fromEntries(new FormData(form).entries());const message=training?
    "Course: "+d.course+"\nPreferred start: "+(d.startDate||"Not specified")+"\nMode: "+(d.mode||"Not specified")+"\nInstitution: "+(d.institution||"Not specified")+"\nCourse of study: "+(d.study||"Not specified")+"\nLevel: "+(d.level||"Not specified")+"\nPlacement duration: "+(d.duration||"Not specified")+"\nAdditional details: "+(d.message||"None"):d.message;
   const status=training?$("#trainingStatus"):$("#contactRouteStatus");const button=$("button[type=submit]",form);if(button)button.disabled=true;if(status)status.textContent="Submitting securely to Stanley Tech Connect…";
-  try{const result=await api("/api/enquiries",{method:"POST",body:JSON.stringify({name:d.name,email:d.email,phone:d.phone||"",service:training?"Training Application":"General Enquiry",subject:training?"Training Application — "+d.course:d.subject,message})});if(status)status.textContent=result.message+" Reference: "+result.reference+". For a full student profile, sign in to the STC workspace and choose Student / Trainee / SIWES account.";form.reset();}
+  try{const result=await api("/api/enquiries",{method:"POST",body:JSON.stringify({name:d.name,email:d.email,phone:d.phone||"",service:training?"Training Application":"General Enquiry",subject:training?"Training Application — "+d.course:d.subject,message})});if(status)status.textContent=result.message+" Reference: "+result.reference+". STC will contact you using the email address provided.";form.reset();}
   catch(err){if(status)status.textContent=err.message;toast(err.message,true);}finally{if(button)button.disabled=false;}
  });}; bindForm($("#trainingApplyForm"),true);
 }

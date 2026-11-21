@@ -77,3 +77,12 @@
 .stc-dash-panel th{padding:11px 9px;border-bottom:1px solid #e5ebf1;color:#64768c;text-align:left;font-size:.68rem;text-transform:capitalize;white-space:nowrap}
 .stc-dash-resource-table td{max-width:320px;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:620px){.stc-dash-table-head{align-items:flex-start;flex-direction:column}}
+
+.stc-staff-assignment{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:20px 0;padding:22px;border:1px solid #dce8f1;border-radius:15px;background:#fff}
+.stc-staff-assignment h3,.stc-staff-assignment p{grid-column:1/-1;margin:0}
+.stc-staff-assignment h3{color:#18324e;font-size:.95rem}
+.stc-staff-assignment p{color:#6c7d91;font-size:.75rem;line-height:1.6}
+.stc-staff-assignment label{display:grid;gap:7px;color:#3b5068;font-size:.73rem;font-weight:750}
+.stc-staff-assignment input,.stc-staff-assignment select{min-height:44px;padding:10px 12px;border:1px solid #dce5ee;border-radius:9px;background:#fbfdff;color:#18324e}
+.stc-staff-assignment button,.stc-staff-assignment .stc-account-status{grid-column:1/-1}
+@media(max-width:620px){.stc-staff-assignment{grid-template-columns:1fr}}

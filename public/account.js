@@ -132,7 +132,7 @@
     bindForm("stcResetForm", async data => {
       if (data.get("password") !== data.get("confirm_password")) throw new Error("The passwords do not match.");
       const result = await request("/api/auth/password/update", { method:"POST", body:JSON.stringify({ password:data.get("password") }) }, recovery);
-      history.replaceState(null, "", location.pathname + location.search);
+      history.replaceState(null, "", location.pathname);
       clearSession();
       setStatus("stcResetFormStatus", result.message + " You can now sign in.");
       setTimeout(() => location.hash = "#account/login", 1600);
@@ -169,6 +169,18 @@
       const me = await request("/api/auth/me");
       const role = me.role || "client";
       const name = me.profile?.full_name || me.user?.email || "STC member";
+      const requestedResource = location.hash.split("/")[2] || "";
+      const allowedResources = role === "super_admin" ? Object.keys(resourceNames) : (staffResources[role] || []);
+      if (requestedResource && allowedResources.includes(requestedResource)) {
+        const result = await request("/api/admin/"+encodeURIComponent(requestedResource));
+        const items = result.items || [];
+        const keys = Object.keys(items[0] || {});
+        const rows = items.slice(0,100).map(item => "<tr>"+keys.map(key=>"<td>"+esc(item[key] ?? "—")+"</td>").join("")+"</tr>").join("");
+        const heading = resourceNames[requestedResource] || requestedResource;
+        showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div><section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main></div>');
+        $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
+        return;
+      }
       let content = "";
       if (role === "student") {
         const data = await request("/api/student/dashboard");
@@ -212,6 +224,10 @@
       $("#siteHeader")?.classList.remove("hidden");
       $("#stcAnnouncementBar")?.classList.remove("hidden");
       $("#siteFooter")?.classList.remove("hidden");
+      if (!hash || hash === "#home") {
+        $("#publicSite")?.classList.remove("hidden");
+        $("#pageView")?.classList.add("hidden");
+      }
     }
   }
   window.addEventListener("hashchange", render);

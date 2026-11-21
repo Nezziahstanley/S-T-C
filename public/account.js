@@ -156,7 +156,7 @@
     content_editor:["services","posts","portfolio","media"]
   };
   const roleNames = { super_admin:"Administrator",manager:"Operations Manager",project_manager:"Project Manager",finance:"Finance Officer",support:"Customer Support",content_editor:"Content Editor",student:"Student",client:"Client" };
-  const resourceNames = { enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
+  const resourceNames = { staff:"Staff & Permissions", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
   function metric(label,value) { return '<article class="stc-dash-metric"><small>'+esc(label)+'</small><strong>'+esc(value ?? 0)+'</strong></article>'; }
   function simpleTable(title, rows, columns) {
     const body = (rows || []).slice(0,6).map(row => '<tr>'+columns.map(key=>'<td>'+esc(row[key] ?? "—")+'</td>').join("")+'</tr>').join("");
@@ -177,8 +177,28 @@
         const keys = Object.keys(items[0] || {});
         const rows = items.slice(0,100).map(item => "<tr>"+keys.map(key=>"<td>"+esc(item[key] ?? "—")+"</td>").join("")+"</tr>").join("");
         const heading = resourceNames[requestedResource] || requestedResource;
-        showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div><section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main></div>');
+        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="Supabase user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
+        showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>${staffAssignment}<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main></div>');
         $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
+        const assignForm = $("#stcAssignStaffForm");
+        assignForm?.addEventListener("submit", async event => {
+          event.preventDefault();
+          const submit = $("button[type=submit]", assignForm);
+          submit.disabled = true;
+          try {
+            const payload = Object.fromEntries(new FormData(assignForm).entries());
+            await request("/api/admin/staff", { method:"POST", body:JSON.stringify(payload) });
+            const status = $("#stcAssignStaffStatus");
+            status.textContent = "Staff role assigned successfully.";
+            status.classList.add("is-success");
+            assignForm.reset();
+            setTimeout(() => location.hash = "#dashboard/staff/staff", 700);
+          } catch (error) {
+            const status = $("#stcAssignStaffStatus");
+            status.textContent = error.message;
+            status.classList.add("is-error");
+          } finally { submit.disabled = false; }
+        });
         return;
       }
       let content = "";

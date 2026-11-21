@@ -366,6 +366,22 @@ app.post("/api/auth/password/sign-in", authLimiter, async (req,res) => {
   const role = await resolveAccountRole(user);
   res.json({access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at,user:{id:user.id,email:user.email},role,is_admin:role==="super_admin"});
 });
+app.post("/api/auth/refresh", authLimiter, async (req, res) => {
+  const refresh_token = typeof req.body?.refresh_token === "string" ? req.body.refresh_token : "";
+  if (!refresh_token || refresh_token.length > 4096) return res.status(400).json({ error: "A valid refresh token is required." });
+  const { data, error } = await authClient.auth.refreshSession({ refresh_token });
+  if (error || !data?.session || !data?.user) return res.status(401).json({ error: "Your session has expired. Please sign in again." });
+  const role = await resolveAccountRole(data.user);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_at: data.session.expires_at,
+    user: { id: data.user.id, email: data.user.email },
+    role,
+    is_admin: role === "super_admin"
+  });
+});
 app.post("/api/auth/request-code", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
   if (!validEmail(email)) return res.status(400).json({ error: "Enter a valid email address." });

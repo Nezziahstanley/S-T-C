@@ -348,7 +348,9 @@ function renderServiceRoute(){
  window.scrollTo({top:0,behavior:"instant"});
 }
 function renderPageRoute(){
- const m=(location.hash||"").match(/^#page\/([^?]+)/);
+ const currentHash=location.hash||"";
+ if(currentHash.startsWith("#account/")||currentHash==="#dashboard"||currentHash.startsWith("#dashboard/")) return;
+ const m=currentHash.match(/^#page\/([^?]+)/);
  if(!m){
   renderServiceRoute();
   if(!location.hash||location.hash==="#home") requestAnimationFrame(()=>document.querySelector("#home")?.scrollIntoView({behavior:"instant",block:"start"}));

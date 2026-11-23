@@ -596,6 +596,7 @@ app.get("/api/client/payments/verify", requireUser, async (req, res) => {
 // CEO and staff workspace
 app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
   if (!["super_admin", "manager"].includes(req.staffRole)) return res.status(403).json({ error: "Your staff role does not have access to the management overview." });
+  const queryLabels = ["enquiry count","project count","invoice count","support ticket count","payment count","student count","training application count","issued certificate count","issued award count","recent enquiries","recent projects","recent support tickets"];
   const results = await Promise.all([
     db.from("stc_enquiries").select("id", { count: "exact", head: true }),
     db.from("stc_projects").select("id", { count: "exact", head: true }),
@@ -610,8 +611,11 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     db.from("stc_projects").select("*").order("created_at", { ascending: false }).limit(8),
     db.from("stc_tickets").select("*").order("created_at", { ascending: false }).limit(8)
   ]);
-  const error = results.find(item => item.error)?.error;
-  if (error) return sendError(res, error, 500);
+  const failedIndex = results.findIndex(item => item.error);
+  if (failedIndex !== -1) {
+    console.error("STC_ADMIN_DASHBOARD_QUERY_FAILED", JSON.stringify({ query:queryLabels[failedIndex], error:results[failedIndex].error }));
+    return res.status(503).json({ error:"The dashboard could not load its "+queryLabels[failedIndex]+". Your sign-in is still active; please try again shortly." });
+  }
   res.json({ role:req.staffRole, metrics:{
     enquiries:results[0].count||0,projects:results[1].count||0,invoices:results[2].count||0,
     tickets:results[3].count||0,payments:results[4].count||0,students:results[5].count||0,

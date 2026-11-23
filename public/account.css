@@ -86,3 +86,42 @@
 .stc-staff-assignment input,.stc-staff-assignment select{min-height:44px;padding:10px 12px;border:1px solid #dce5ee;border-radius:9px;background:#fbfdff;color:#18324e}
 .stc-staff-assignment button,.stc-staff-assignment .stc-account-status{grid-column:1/-1}
 @media(max-width:620px){.stc-staff-assignment{grid-template-columns:1fr}}
+
+/* Super administrator control centre */
+.stc-admin-welcome{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:32px clamp(22px,4vw,42px);border-radius:20px;background:radial-gradient(circle at 85% 20%,rgba(76,220,236,.2),transparent 28%),linear-gradient(115deg,#092541,#087f96);color:#fff;box-shadow:0 16px 38px rgba(7,65,96,.13)}
+.stc-admin-welcome h2{margin:9px 0 7px;color:#fff;font-size:clamp(1.65rem,3vw,2.35rem);letter-spacing:-.05em}
+.stc-admin-welcome p{margin:0;color:#d2e9f2;font-size:.86rem}
+.stc-admin-welcome-meta{display:grid;grid-template-columns:12px auto;align-items:center;column-gap:9px;padding:13px 15px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(255,255,255,.08);font-size:.73rem;font-weight:750;white-space:nowrap}
+.stc-admin-welcome-meta small{grid-column:2;color:#c4e1e9;font-size:.66rem;font-weight:500}
+.stc-admin-live-dot{width:9px;height:9px;border-radius:50%;background:#6be2ae;box-shadow:0 0 0 4px rgba(107,226,174,.14)}
+.stc-admin-eyebrow{display:block;color:#078eae;font-size:.61rem;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
+.stc-admin-section-title{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:29px 0 13px}
+.stc-admin-section-title h3{margin:5px 0 0;color:#17324e;font-size:1.1rem;letter-spacing:-.025em}
+.stc-admin-section-title>span,.stc-admin-panel-heading>span{color:#8290a1;font-size:.68rem}
+.stc-admin-metrics{margin:0;grid-template-columns:repeat(3,minmax(0,1fr))}
+.stc-admin-metrics .stc-dash-metric{position:relative;overflow:hidden;min-height:112px;padding:18px 19px}
+.stc-admin-metrics .stc-dash-metric:after{content:"";position:absolute;right:-18px;bottom:-33px;width:90px;height:90px;border-radius:50%;background:rgba(7,153,183,.055)}
+.stc-admin-metrics .stc-dash-metric strong{font-size:1.85rem}
+.stc-admin-overview-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(250px,.8fr);gap:15px;margin-top:16px}
+.stc-admin-chart,.stc-admin-shortcuts{padding:22px}
+.stc-admin-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.stc-admin-panel-heading h3,.stc-admin-shortcuts h3{margin:5px 0 0;color:#1b3451;font-size:.96rem}
+.stc-admin-bar-row{margin:16px 0}
+.stc-admin-bar-row>div:first-child{display:flex;justify-content:space-between;gap:15px;margin-bottom:8px;color:#566a80;font-size:.74rem}
+.stc-admin-bar-row strong{color:#18344f}
+.stc-admin-bar-track{height:9px;border-radius:99px;background:#edf3f7;overflow:hidden}
+.stc-admin-bar-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#087fa9,#35c4d5)}
+.stc-admin-shortcuts{display:flex;flex-direction:column;gap:9px}
+.stc-admin-shortcuts h3{margin-bottom:8px}
+.stc-admin-shortcuts>a{display:flex;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid #e7edf2;border-radius:9px;color:#35516b;font-size:.74rem;font-weight:700;text-decoration:none}
+.stc-admin-shortcuts>a span,.stc-admin-nav-group a span{color:#0789ad}
+.stc-admin-shortcuts>a:hover,.stc-admin-nav-group a:hover{border-color:#8ed7e4;background:#f5fcfd}
+.stc-admin-module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.stc-admin-nav-group{padding:18px;border:1px solid #e2eaf1;border-radius:14px;background:#fff}
+.stc-admin-nav-group h3{margin:0 0 12px;color:#1b3451;font-size:.83rem}
+.stc-admin-nav-group>div{display:grid;gap:7px}
+.stc-admin-nav-group a{display:flex;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid #edf1f5;border-radius:8px;color:#52677d;font-size:.71rem;font-weight:650;text-decoration:none}
+.stc-admin-recent{margin-top:0}
+.stc-admin-recent .stc-dash-panel{min-width:0}
+@media(max-width:900px){.stc-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stc-admin-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stc-admin-overview-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.stc-admin-welcome{align-items:flex-start;flex-direction:column}.stc-admin-section-title{align-items:flex-start;flex-direction:column}.stc-admin-section-title>span{font-size:.65rem}.stc-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stc-admin-metrics .stc-dash-metric{padding:14px;min-height:96px}.stc-admin-metrics .stc-dash-metric strong{font-size:1.55rem}.stc-admin-module-grid{grid-template-columns:1fr}.stc-admin-welcome-meta{white-space:normal}}

@@ -281,6 +281,8 @@
     }
   }
   window.addEventListener("hashchange", render);
-  document.addEventListener("DOMContentLoaded", render);
+  window.addEventListener("pageshow", render);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", render, { once:true });
+  else render();
   window.STCAccount = { render, logout:clearSession };
 })();

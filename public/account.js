@@ -29,7 +29,11 @@
       }
     }
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "The request could not be completed.");
+    if (!response.ok) {
+      const error = new Error(data.error || "The request could not be completed.");
+      error.status = response.status;
+      throw error;
+    }
     return data;
   }
   function root() {
@@ -254,8 +258,9 @@
       showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main">'+content+'<div class="stc-dash-footer"><a href="#account/change-password">Change password</a><a href="#home">Visit public website</a></div></main></div>');
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
     } catch (error) {
-      clearSession();
-      showAccount('<div class="stc-auth-card stc-dashboard-error"><span class="stc-auth-kicker">WORKSPACE UNAVAILABLE</span><h2>We could not load your dashboard</h2><p>'+esc(error.message)+'</p><a class="stc-auth-submit stc-auth-link-button" href="#account/login">Sign in again</a></div>');
+      if (error.status === 401) clearSession();
+      const expired = error.status === 401;
+      showAccount('<div class="stc-auth-card stc-dashboard-error"><span class="stc-auth-kicker">WORKSPACE UNAVAILABLE</span><h2>'+(expired?'Your session has expired':'Your sign-in was successful, but the dashboard could not finish loading')+'</h2><p>'+esc(error.message)+'</p>'+(expired?'<a class="stc-auth-submit stc-auth-link-button" href="#account/login">Sign in again</a>':'<a class="stc-auth-submit stc-auth-link-button" href="#dashboard">Try loading dashboard again</a>')+'</div>');
     }
   }
   function render() {

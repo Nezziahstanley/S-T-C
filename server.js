@@ -143,7 +143,7 @@ function staffCan(req, resource) {
 }
 
 function sendError(res, error, status = 400) {
-  console.error(error);
+  console.error("STC_API_ERROR", JSON.stringify({ status, name:error?.name || null, message:error?.message || null, code:error?.code || null, details:error?.details || null, hint:error?.hint || null }));
   return res.status(status).json({ error: error?.message || "Something went wrong." });
 }
 

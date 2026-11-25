@@ -532,7 +532,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
 app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
   if (!validEmail(email)) return res.status(400).json({ error: "Enter the email address on your STC account." });
-  const redirectTo = (STC_PUBLIC_URL || process.env.BETTER_AUTH_URL || "https://stc-staging.onrender.com").replace(/\/$/, "") + "/?password-reset=1";
+  const redirectTo = (process.env.BETTER_AUTH_URL || "https://stc-staging.onrender.com").replace(/\/$/, "") + "/?password-reset=1";
   try {
     await auth.api.requestPasswordReset({ body: { email, redirectTo } });
     res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });

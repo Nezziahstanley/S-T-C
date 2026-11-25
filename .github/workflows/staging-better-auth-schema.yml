@@ -1,0 +1,28 @@
+name: STC staging Better Auth schema
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-better-auth:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.STC_STAGING_DATABASE_URL }}
+      BETTER_AUTH_SECRET: ${{ secrets.STC_STAGING_BETTER_AUTH_SECRET }}
+      BETTER_AUTH_URL: ${{ secrets.STC_STAGING_BETTER_AUTH_URL }}
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install
+      - name: Apply Better Auth schema to Neon staging
+        run: npx auth@latest migrate --config ./auth.js --yes

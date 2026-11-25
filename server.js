@@ -429,6 +429,36 @@ app.get("/api/auth/me", requireUser, async (req, res) => {
   });
 });
 
+app.post("/api/account/profile", requireUser, async (req, res) => {
+  const full_name = clean(req.body?.full_name);
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const company = clean(req.body?.company);
+  if (!full_name || full_name.length > 120 || !account_type || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Check your account profile details." });
+  }
+  if (account_type === "student" && (!institution || !department || !study_level)) {
+    return res.status(400).json({ error: "Students must provide their institution, department and study level." });
+  }
+  const profile = {
+    user_id: req.user.id, full_name, account_type, phone: phone || null,
+    institution: institution || null, department: department || null,
+    study_level: study_level || null, company: company || null
+  };
+  if (account_type === "student") {
+    profile.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { data, error } = await db.from("stc_profiles")
+    .upsert(profile, { onConflict: "user_id" })
+    .select("user_id,full_name,account_type,student_number").single();
+  if (error) return sendError(res, error, 400);
+  res.status(201).json({ profile: data, role: account_type });
+});
+
 // Student dashboard data is isolated to the authenticated student's own records.
 app.get("/api/student/dashboard", requireUser, async (req, res) => {
   const uid = req.user.id;

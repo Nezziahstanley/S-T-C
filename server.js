@@ -1,7 +1,6 @@
 import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { createClient } from "@supabase/supabase-js";
 import { db } from "./database.js";
 import { auth } from "./auth.js";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
@@ -16,20 +15,10 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, "public");
 
 const {
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  SUPABASE_PUBLISHABLE_KEY,
   STC_ADMIN_EMAIL,
   STC_PUBLIC_URL,
   PAYSTACK_SECRET_KEY
 } = process.env;
-
-const supabaseAuthKey = SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY;
-const authClient = SUPABASE_URL && supabaseAuthKey
-  ? createClient(SUPABASE_URL, supabaseAuthKey, {
-      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
-    })
-  : null;
 
 app.disable("x-powered-by");
 app.use(helmet({
@@ -40,7 +29,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://*.supabase.co", "https://api.paystack.co", "https://esm.sh"],
+      connectSrc: ["'self'", "https://api.paystack.co", "https://esm.sh"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       upgradeInsecureRequests: []
@@ -92,12 +81,7 @@ async function verifiedUser(req) {
   } catch (error) {
     console.error("Better Auth session lookup failed:", error.message);
   }
-  const authorization = req.headers.authorization || "";
-  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  if (!token || !authClient) return null;
-  if (!authClient) return null;
-  const { data, error } = await authClient.auth.getUser(token);
-  return error ? null : data.user;
+  return null;
 }
 
 async function requireUser(req, res, next) {
@@ -161,14 +145,6 @@ async function audit(user, action, entity, entityId, details = {}) {
 app.get("/api/health", (_req, res) => res.json({
   ok: true, service: "Stanley Tech Connect", version: "2.0.0"
 }));
-
-app.get("/api/public/auth-config", (_req, res) => {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    return res.status(503).json({ error: "Passkey sign-in is not configured yet." });
-  }
-  res.setHeader("Cache-Control", "no-store");
-  res.json({ supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY });
-});
 
 app.post("/api/paystack/webhook", async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) return res.sendStatus(503);
@@ -311,113 +287,6 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
   });
 });
 
-// Email/password registration for student and client accounts. Staff access is assigned by an administrator.
-app.post("/api/auth/register", authLimiter, async (req, res) => {
-  const full_name = clean(req.body?.full_name);
-  const email = clean(req.body?.email).toLowerCase();
-  const password = typeof req.body?.password === "string" ? req.body.password : "";
-  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
-  const phone = clean(req.body?.phone);
-  const institution = clean(req.body?.institution);
-  const department = clean(req.body?.department);
-  const study_level = clean(req.body?.study_level);
-  const company = clean(req.body?.company);
-  if (!full_name || full_name.length > 120 || !validEmail(email) || password.length < 10 || password.length > 128 || !account_type ||
-      phone.length > 40 || institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
-    return res.status(400).json({ error: "Complete the required fields and use a password of at least 10 characters." });
-  }
-  if (account_type === "student" && (!institution || !department || !study_level)) {
-    return res.status(400).json({ error: "Students must provide their institution, department and study level." });
-  }
-  const redirectTo = (STC_PUBLIC_URL || "https://stanley-tech-connect.onrender.com").replace(/\/$/, "") + "/?account-verified=1";
-  const { data, error } = await authClient.auth.signUp({
-    email, password,
-    options: { data: { full_name, account_type }, emailRedirectTo: redirectTo }
-  });
-  if (error || !data?.user) return sendError(res, error || new Error("Registration could not be completed."), 400);
-  const profile = {
-    user_id: data.user.id, full_name, account_type, phone, institution, department, study_level, company
-  };
-  if (account_type === "student") profile.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-  const { error: profileError } = await db.from("stc_profiles").upsert(profile, { onConflict: "user_id" });
-  if (profileError) {
-    console.error("Registration profile setup:", profileError.message);
-    return res.status(500).json({ error: "Your account was created, but your profile setup needs assistance. Please contact STC support." });
-  }
-  res.status(201).json({
-    message: data.session ? "Your STC account is ready." : "Registration received. Check your email to confirm your account before signing in.",
-    confirmation_required: !data.session,
-    account_type,
-    ...(data.session ? {
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_at: data.session.expires_at,
-      user: { id: data.user.id, email: data.user.email },
-      role: account_type
-    } : {})
-  });
-});
-
-// Email OTP and password authentication
-app.post("/api/auth/password/sign-in", authLimiter, async (req,res) => {
-  const email=clean(req.body?.email).toLowerCase(), password=typeof req.body?.password==="string"?req.body.password:"";
-  if(!validEmail(email)||!password)return res.status(400).json({error:"Enter your email and password."});
-  const {data,error}=await authClient.auth.signInWithPassword({email,password});
-  if(error||!data?.session?.access_token||!data?.user)return res.status(401).json({error:"Email or password is incorrect. You can also sign in with an email code."});
-  const user=data.user;
-  const {error:profileError}=await db.from("stc_profiles").upsert({user_id:user.id,full_name:clean(user.user_metadata?.full_name)||email.split("@")[0]},{onConflict:"user_id",ignoreDuplicates:true});
-  if(profileError)console.error("Profile setup:",profileError.message);
-  const role = await resolveAccountRole(user);
-  res.json({access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at,user:{id:user.id,email:user.email},role,is_admin:role==="super_admin"});
-});
-app.post("/api/auth/refresh", authLimiter, async (req, res) => {
-  const refresh_token = typeof req.body?.refresh_token === "string" ? req.body.refresh_token : "";
-  if (!refresh_token || refresh_token.length > 4096) return res.status(400).json({ error: "A valid refresh token is required." });
-  const { data, error } = await authClient.auth.refreshSession({ refresh_token });
-  if (error || !data?.session || !data?.user) return res.status(401).json({ error: "Your session has expired. Please sign in again." });
-  const role = await resolveAccountRole(data.user);
-  res.setHeader("Cache-Control", "no-store");
-  res.json({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_at: data.session.expires_at,
-    user: { id: data.user.id, email: data.user.email },
-    role,
-    is_admin: role === "super_admin"
-  });
-});
-app.post("/api/auth/request-code", authLimiter, async (req, res) => {
-  const email = clean(req.body?.email).toLowerCase();
-  if (!validEmail(email)) return res.status(400).json({ error: "Enter a valid email address." });
-  const { error } = await authClient.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  if (error) return sendError(res, error, 400);
-  res.json({ message: "Your six-digit sign-in code has been sent. Check your inbox and spam folder." });
-});
-app.post("/api/auth/verify-code", authLimiter, async (req, res) => {
-  const email = clean(req.body?.email).toLowerCase();
-  const token = clean(req.body?.token).replace(/\s/g, "");
-  if (!validEmail(email) || !/^\d{6}$/.test(token)) {
-    return res.status(400).json({ error: "Enter your email and six-digit code." });
-  }
-  const { data, error } = await authClient.auth.verifyOtp({ email, token, type: "email" });
-  if (error || !data?.session?.access_token || !data?.user) {
-    return sendError(res, error || new Error("The code is invalid or expired."), 400);
-  }
-  const user = data.user;
-  const { error: profileError } = await db.from("stc_profiles").upsert({
-    user_id: user.id, full_name: clean(user.user_metadata?.full_name) || email.split("@")[0]
-  }, { onConflict: "user_id", ignoreDuplicates: true });
-  if (profileError) console.error("Profile setup:", profileError.message);
-  const role = await resolveAccountRole(user);
-  res.json({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_at: data.session.expires_at,
-    user: { id: user.id, email: user.email },
-    role,
-    is_admin: role === "super_admin"
-  });
-});
 app.get("/api/auth/me", requireUser, async (req, res) => {
   const { data: profile } = await db.from("stc_profiles")
     .select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", req.user.id).maybeSingle();
@@ -1028,7 +897,7 @@ app.post("/api/student/enrollments", requireUser, async (req, res) => {
       text: [
         "New STC training / SIWES application",
         "",
-        "Applicant: " + clean(req.user.user_metadata?.full_name || req.user.email),
+        "Applicant: " + clean(req.user.name || req.user.email),
         "Email: " + clean(req.user.email),
         "Programme: " + course_name,
         "Mode: " + mode,

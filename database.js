@@ -39,8 +39,15 @@ class Query {
     this.payload = null;
     this.conflict = null;
     this.ignoreDuplicates = false;
+    this.countMode = null;
+    this.headOnly = false;
   }
-  select(value = "*") { this.projection = columns(value); return this; }
+  select(value = "*", options = {}) {
+    this.projection = columns(value);
+    this.countMode = options.count || null;
+    this.headOnly = Boolean(options.head);
+    return this;
+  }
   where(column, operator, value) {
     const col = ident(column);
     if (operator === "in") {
@@ -60,7 +67,11 @@ class Query {
   lt(c,v){ return this.where(c,"<",v); }
   lte(c,v){ return this.where(c,"<=",v); }
   in(c,v){ return this.where(c,"in",v); }
-  is(c,v){ return this.where(c,v === null ? "IS" : "=",v); }
+  is(c,v){
+    if (v === null) { this.filters.push(ident(c) + " IS NULL"); return this; }
+    if (v === true || v === false) { this.filters.push(ident(c) + " IS " + (v ? "TRUE" : "FALSE")); return this; }
+    return this.eq(c,v);
+  }
   order(column, options = {}) {
     this.sorts.push(ident(column) + (options.ascending === false ? " DESC" : " ASC"));
     return this;
@@ -89,7 +100,9 @@ class Query {
     const returning = " RETURNING " + this.projection;
     let sql;
     try {
-      if (this.action === "select") {
+      if (this.action === "select" && this.countMode) {
+        sql = "SELECT COUNT(*)::int AS count FROM " + this.table + where;
+      } else if (this.action === "select") {
         sql = "SELECT " + this.projection + " FROM " + this.table + where +
           (this.sorts.length ? " ORDER BY " + this.sorts.join(", ") : "") +
           (this.maxRows !== null ? " LIMIT " + this.maxRows : "");
@@ -126,6 +139,9 @@ class Query {
         sql = "DELETE FROM " + this.table + where + returning;
       }
       const result = await authDatabasePool.query(sql, params);
+      if (this.action === "select" && this.countMode) {
+        return { data: this.headOnly ? null : result.rows, error: null, count: result.rows[0]?.count ?? 0 };
+      }
       return { data: result.rows, error: null, count: result.rowCount };
     } catch (error) {
       return { data: null, error: pgError(error) };

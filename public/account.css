@@ -185,3 +185,47 @@
 .stc-admin-edit-check{display:flex!important;align-items:center;gap:8px}
 .stc-admin-edit-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:8px}
 @media(max-width:620px){.stc-admin-resource-tools{align-items:stretch;flex-direction:column}.stc-admin-resource-tools input{width:100%}.stc-admin-edit-card{padding:18px}}
+
+
+/* STC dashboard analytics and personalisation polish */
+.stc-admin-customize-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 10px;padding:15px 18px;border:1px solid #dce8f0;border-radius:13px;background:linear-gradient(110deg,#fff,#f5fbfd)}
+.stc-admin-customize-row strong{display:block;margin-top:4px;color:#1b3451;font-size:.9rem}
+.stc-admin-customize-row button,.stc-admin-layout-controls button{border:0;border-radius:9px;padding:10px 15px;background:#087f96;color:#fff;font:inherit;font-size:.74rem;font-weight:800;cursor:pointer}
+.stc-admin-layout-controls{display:flex;align-items:center;flex-wrap:wrap;gap:16px;margin:10px 0 16px;padding:14px 16px;border:1px solid #dce8f0;border-radius:12px;background:#fff}
+.stc-admin-layout-controls[hidden]{display:none}
+.stc-admin-layout-controls label{display:flex;align-items:center;gap:8px;color:#53687d;font-size:.73rem;font-weight:700}
+.stc-admin-layout-controls select,.stc-admin-chart-setting select{padding:7px 9px;border:1px solid #d9e4ec;border-radius:8px;background:#fff;color:#27445e;font:inherit;font-size:.7rem}
+.stc-admin-layout-controls button{padding:8px 11px;background:#edf5f8;color:#087f96}
+.stc-admin-chart-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+.stc-admin-chart-grid.is-three-columns{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stc-admin-chart-grid .stc-admin-chart[hidden]{display:none}
+.stc-admin-chart{border:1px solid #e4edf3;border-radius:15px;box-shadow:0 5px 20px rgba(19,53,79,.035);transition:box-shadow .18s,transform .18s}
+.stc-admin-chart:hover{box-shadow:0 12px 28px rgba(19,53,79,.075);transform:translateY(-1px)}
+.stc-admin-chart-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
+.stc-admin-chart-tools>span{color:#8290a1;font-size:.65rem}
+.stc-admin-chart-setting,.stc-admin-chart-hide{display:flex;align-items:center;gap:5px;color:#61758a;font-size:.67rem;font-weight:700}
+.stc-admin-chart-hide{display:none}
+.stc-admin-chart-grid.is-customizing .stc-admin-chart-hide{display:flex}
+.stc-admin-chart-visual{min-height:190px;display:flex;align-items:center;justify-content:center}
+.stc-admin-donut-layout{width:100%;display:grid;grid-template-columns:minmax(130px,.8fr) minmax(0,1.2fr);align-items:center;gap:20px}
+.stc-admin-donut{width:min(190px,100%);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;margin:auto;position:relative}
+.stc-admin-donut:before{content:"";position:absolute;inset:22%;border-radius:50%;background:#fff}
+.stc-admin-donut>div{z-index:1;display:grid;text-align:center}
+.stc-admin-donut strong{color:#17324e;font-size:1.45rem;letter-spacing:-.04em}
+.stc-admin-donut span{color:#8290a1;font-size:.65rem}
+.stc-admin-chart-legend{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.stc-admin-chart-legend li{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:8px;color:#63768b;font-size:.7rem}
+.stc-admin-chart-legend li i{width:8px;height:8px;border-radius:50%}
+.stc-admin-chart-legend li strong{color:#1b3451;font-size:.7rem}
+.stc-admin-line-wrap{width:100%;min-width:0}
+.stc-admin-line-wrap svg{width:100%;height:auto;overflow:visible}
+.stc-admin-line-labels{display:flex;justify-content:space-between;gap:6px;color:#8290a1;font-size:.62rem}
+.stc-admin-bars{width:100%}
+.stc-admin-bar-row{margin:13px 0}
+.stc-admin-bar-row>div:first-child{font-size:.72rem}
+.stc-admin-chart-grid.is-compact .stc-admin-chart{padding:15px}
+.stc-admin-chart-grid.is-compact .stc-admin-chart-visual{min-height:145px}
+.stc-admin-chart-grid.is-compact .stc-admin-donut{width:min(145px,100%)}
+.stc-admin-chart-grid.is-compact .stc-admin-donut-layout{gap:12px}
+@media(max-width:1100px){.stc-admin-chart-grid.is-three-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.stc-admin-customize-row{align-items:flex-start;flex-direction:column}.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:1fr}.stc-admin-donut-layout{grid-template-columns:minmax(110px,.75fr) minmax(0,1.25fr);gap:12px}.stc-admin-chart-tools{justify-content:flex-start}.stc-admin-layout-controls{align-items:flex-start;flex-direction:column}}

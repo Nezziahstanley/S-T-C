@@ -211,7 +211,7 @@
     const label=esc(key.replaceAll("_"," "));
     if(typeof value==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(value?'checked':'')+'> '+label+'</label>';
     const long=["description","summary","excerpt","body","details"].includes(key);
-    const type=["amount","progress","sort_order","placement_duration"].includes(key)?"number":"text";
+    const type=["amount","progress","sort_order"].includes(key)?"number":"text";
     const input=long?'<textarea name="'+esc(key)+'" rows="3">'+esc(value??"")+'</textarea>':'<input name="'+esc(key)+'" type="'+type+'" value="'+esc(value??"")+'" '+(type==="number"?'step="any"':'')+'>';
     return '<label class="stc-field">'+label+input+'</label>';
   }

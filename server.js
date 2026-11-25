@@ -740,7 +740,20 @@ app.get("/api/admin/students", requireStaff, async (req,res) => {
   if(enrollError)return sendError(res,enrollError,500);
   const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
   if(projectError)return sendError(res,projectError,500);
-  res.json({students:(profiles||[]).map(p=>({...p,enrollments:(enrollments||[]).filter(e=>e.user_id===p.user_id),projects:(projects||[]).filter(x=>x.client_user_id===p.user_id)}))});
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!staffCan(req,"profiles")) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
 });
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];

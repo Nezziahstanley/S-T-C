@@ -42,7 +42,7 @@ async function authorizeAdmin() {
     throw new Error("This account does not have STC administrator or staff permissions.");
   }
   message("Login successful. Opening the STC admin dashboard…");
-  location.replace("/?admin=1");
+  location.replace("/#dashboard/admin");
 }
 
 async function init() {

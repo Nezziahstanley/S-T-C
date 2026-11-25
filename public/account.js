@@ -157,7 +157,7 @@
     content_editor:["services","posts","portfolio","media"]
   };
   const roleNames = { super_admin:"Administrator",manager:"Operations Manager",project_manager:"Project Manager",finance:"Finance Officer",support:"Customer Support",content_editor:"Content Editor",student:"Student",client:"Client" };
-  const resourceNames = { staff:"Staff & Permissions", profiles:"User Profiles", clients:"Client Management", students:"Student Management", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
+  const resourceNames = { staff:"Staff & Permissions", profiles:"User Profiles", clients:"Client Management", students:"Student Management", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
   function metric(label,value) { return '<article class="stc-dash-metric"><small>'+esc(label)+'</small><strong>'+esc(value ?? 0)+'</strong></article>'; }
 
   const adminNavGroups = [

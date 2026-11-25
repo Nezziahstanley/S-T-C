@@ -164,3 +164,24 @@
 .stc-admin-chart-grid .stc-admin-panel-heading>span{max-width:44%;text-align:right;font-size:.65rem;color:#718398}
 .stc-admin-recent{margin-top:18px}
 @media(max-width:680px){.stc-admin-chart-grid{grid-template-columns:1fr}.stc-admin-chart-grid .stc-admin-chart:last-child:nth-child(odd){grid-column:auto}}
+
+/* Admin record search, paging and edit dialog */
+.stc-admin-resource-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0}
+.stc-admin-resource-tools input{width:min(360px,100%);padding:10px 12px;border:1px solid #d8e2eb;border-radius:9px;background:#fff;color:#18344f;font:inherit;font-size:.78rem}
+.stc-admin-resource-tools span{color:#718398;font-size:.7rem;white-space:nowrap}
+.stc-admin-pagination{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.stc-admin-pagination button,.stc-admin-edit-button,.stc-admin-edit-cancel{padding:8px 12px;border:1px solid #d5e0e9;border-radius:8px;background:#fff;color:#23425e;font:inherit;font-size:.72rem;font-weight:700;cursor:pointer}
+.stc-admin-pagination button:disabled{opacity:.4;cursor:not-allowed}
+.stc-admin-edit-button{padding:6px 10px;color:#087fa9}
+.stc-admin-edit-modal{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(5,18,32,.62);overflow:auto}
+.stc-admin-edit-modal.hidden{display:none}
+.stc-admin-edit-card{width:min(620px,100%);max-height:min(86vh,900px);overflow:auto;padding:24px;border:1px solid #e2e9ef;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.24)}
+.stc-admin-edit-card .stc-admin-panel-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.stc-admin-edit-card .stc-admin-panel-heading h3{margin:0;color:#18344f}
+.stc-admin-edit-card .stc-admin-panel-heading button{border:0;background:transparent;color:#61758a;font-size:1.6rem;cursor:pointer}
+.stc-admin-edit-card form{display:grid;gap:12px}
+.stc-admin-edit-card .stc-field{display:grid;gap:6px;color:#53687d;font-size:.75rem;font-weight:700;text-transform:capitalize}
+.stc-admin-edit-card .stc-field input:not([type=checkbox]),.stc-admin-edit-card .stc-field textarea{width:100%;padding:10px 12px;border:1px solid #d8e2eb;border-radius:8px;background:#fff;color:#18344f;font:inherit;font-size:.82rem}
+.stc-admin-edit-check{display:flex!important;align-items:center;gap:8px}
+.stc-admin-edit-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:8px}
+@media(max-width:620px){.stc-admin-resource-tools{align-items:stretch;flex-direction:column}.stc-admin-resource-tools input{width:100%}.stc-admin-edit-card{padding:18px}}

@@ -156,3 +156,11 @@
  .stc-admin-side-foot{display:none}
  .stc-admin-main{padding:20px 4vw}
 }
+
+/* Dashboard analytics panels */
+.stc-admin-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:16px}
+.stc-admin-chart-grid .stc-admin-chart{min-width:0;margin:0}
+.stc-admin-chart-grid .stc-admin-chart:last-child:nth-child(odd){grid-column:1/-1}
+.stc-admin-chart-grid .stc-admin-panel-heading>span{max-width:44%;text-align:right;font-size:.65rem;color:#718398}
+.stc-admin-recent{margin-top:18px}
+@media(max-width:680px){.stc-admin-chart-grid{grid-template-columns:1fr}.stc-admin-chart-grid .stc-admin-chart:last-child:nth-child(odd){grid-column:auto}}

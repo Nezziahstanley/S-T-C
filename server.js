@@ -500,31 +500,75 @@ app.get("/api/client/payments/verify", requireUser, async (req, res) => {
 // CEO and staff workspace
 app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
   if (!["super_admin", "manager"].includes(req.staffRole)) return res.status(403).json({ error: "Your staff role does not have access to the management overview." });
-  const queryLabels = ["enquiry count","project count","invoice count","support ticket count","payment count","student count","training application count","issued certificate count","issued award count","recent enquiries","recent projects","recent support tickets"];
+  const labels = [
+    "enquiry count","project count","invoice count","support ticket count","payment count","student count",
+    "training enrolment count","issued certificate count","issued award count","profile count","client count",
+    "active staff count","service count","published post count","portfolio count","media count",
+    "recent enquiries","recent projects","recent support tickets","project status data","payment summary data",
+    "enrolment status data","enquiry status data","recent audit activity"
+  ];
   const results = await Promise.all([
-    db.from("stc_enquiries").select("id", { count: "exact", head: true }),
-    db.from("stc_projects").select("id", { count: "exact", head: true }),
-    db.from("stc_invoices").select("id", { count: "exact", head: true }),
-    db.from("stc_tickets").select("id", { count: "exact", head: true }),
-    db.from("stc_payments").select("id", { count: "exact", head: true }),
-    db.from("stc_profiles").select("user_id", { count: "exact", head: true }).eq("account_type","student"),
-    db.from("stc_training_enrollments").select("id", { count: "exact", head: true }),
-    db.from("stc_certificates").select("id", { count: "exact", head: true }).eq("status","issued"),
-    db.from("stc_awards").select("id", { count: "exact", head: true }).eq("status","issued"),
-    db.from("stc_enquiries").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("stc_projects").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("stc_tickets").select("*").order("created_at", { ascending: false }).limit(8)
+    db.from("stc_enquiries").select("id", { count:"exact", head:true }),
+    db.from("stc_projects").select("id", { count:"exact", head:true }),
+    db.from("stc_invoices").select("id", { count:"exact", head:true }),
+    db.from("stc_tickets").select("id", { count:"exact", head:true }),
+    db.from("stc_payments").select("id", { count:"exact", head:true }),
+    db.from("stc_profiles").select("user_id", { count:"exact", head:true }).eq("account_type","student"),
+    db.from("stc_training_enrollments").select("id", { count:"exact", head:true }),
+    db.from("stc_certificates").select("id", { count:"exact", head:true }).eq("status","issued"),
+    db.from("stc_awards").select("id", { count:"exact", head:true }).eq("status","issued"),
+    db.from("stc_profiles").select("user_id", { count:"exact", head:true }),
+    db.from("stc_profiles").select("user_id", { count:"exact", head:true }).eq("account_type","client"),
+    db.from("stc_staff_roles").select("user_id", { count:"exact", head:true }).eq("is_active",true),
+    db.from("stc_services").select("id", { count:"exact", head:true }),
+    db.from("stc_posts").select("id", { count:"exact", head:true }),
+    db.from("stc_portfolio").select("id", { count:"exact", head:true }),
+    db.from("stc_media").select("id", { count:"exact", head:true }),
+    db.from("stc_enquiries").select("*").order("created_at", { ascending:false }).limit(8),
+    db.from("stc_projects").select("*").order("created_at", { ascending:false }).limit(8),
+    db.from("stc_tickets").select("*").order("created_at", { ascending:false }).limit(8),
+    db.from("stc_projects").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
+    db.from("stc_payments").select("amount,currency,status,created_at").order("created_at", { ascending:false }).limit(1000),
+    db.from("stc_training_enrollments").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
+    db.from("stc_enquiries").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
+    db.from("stc_audit_logs").select("actor,action,entity,entity_id,created_at,details").order("created_at", { ascending:false }).limit(12)
   ]);
   const failedIndex = results.findIndex(item => item.error);
   if (failedIndex !== -1) {
-    console.error("STC_ADMIN_DASHBOARD_QUERY_FAILED", JSON.stringify({ query:queryLabels[failedIndex], error:results[failedIndex].error }));
-    return res.status(503).json({ error:"The dashboard could not load its "+queryLabels[failedIndex]+". Your sign-in is still active; please try again shortly." });
+    console.error("STC_ADMIN_DASHBOARD_QUERY_FAILED", JSON.stringify({ query:labels[failedIndex], error:results[failedIndex].error }));
+    return res.status(503).json({ error:"The dashboard could not load its "+labels[failedIndex]+". Your sign-in is still active; please try again shortly." });
   }
-  res.json({ role:req.staffRole, metrics:{
-    enquiries:results[0].count||0,projects:results[1].count||0,invoices:results[2].count||0,
-    tickets:results[3].count||0,payments:results[4].count||0,students:results[5].count||0,
-    training_applications:results[6].count||0,certificates_issued:results[7].count||0,awards_issued:results[8].count||0
-  }, enquiries:results[9].data||[],projects:results[10].data||[],tickets:results[11].data||[] });
+  const count = index => results[index].count || 0;
+  const groupByStatus = rows => (rows || []).reduce((groups,row) => {
+    const key = String(row.status || "unspecified").toLowerCase();
+    groups[key] = (groups[key] || 0) + 1;
+    return groups;
+  }, {});
+  const revenueByCurrency = {};
+  for (const payment of results[20].data || []) {
+    if (String(payment.status).toLowerCase() !== "success") continue;
+    const currency = String(payment.currency || "Unspecified").toUpperCase();
+    const amount = Number(payment.amount);
+    if (Number.isFinite(amount)) revenueByCurrency[currency] = (revenueByCurrency[currency] || 0) + amount;
+  }
+  res.json({
+    role:req.staffRole,
+    metrics:{
+      enquiries:count(0),projects:count(1),invoices:count(2),tickets:count(3),payments:count(4),
+      students:count(5),training_applications:count(6),certificates_issued:count(7),awards_issued:count(8),
+      profiles:count(9),clients:count(10),staff:count(11),services:count(12),posts:count(13),
+      portfolio:count(14),media:count(15)
+    },
+    enquiries:results[16].data||[],projects:results[17].data||[],tickets:results[18].data||[],
+    analytics:{
+      project_status:groupByStatus(results[19].data),
+      payment_status:groupByStatus(results[20].data),
+      enrolment_status:groupByStatus(results[21].data),
+      enquiry_status:groupByStatus(results[22].data),
+      revenue_by_currency:revenueByCurrency
+    },
+    activity:results[23].data||[]
+  });
 });
 
 

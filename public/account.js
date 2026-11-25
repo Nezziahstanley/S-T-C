@@ -448,6 +448,7 @@
         }
       }
       showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,"")+'<main class="stc-dash-main">'+content+'<div class="stc-dash-footer"><a href="#account/change-password">Change password</a><a href="#home">Visit public website</a></div></main>'+adminLayoutEnd(role)+'</div>');
+      if (role === "super_admin") bindAdminDashboard();
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
     } catch (error) {
       if (error.status === 401) clearSession();

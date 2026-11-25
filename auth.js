@@ -50,7 +50,7 @@ export const auth = betterAuth({
           from,
           to: [user.email],
           subject: "Reset your Stanley Tech Connect password",
-          text: "Hello " + (user.name || user.email) + ",\\n\\nUse the following secure link to reset your password. This link is time-limited and can only be used once:\\n\\n" + url + "\\n\\nIf you did not request this, you can ignore this email.\\n\\nStanley Tech Connect"
+          text: "Hello " + (user.name || user.email) + ",\n\nUse the following secure link to reset your password. This link is time-limited and can only be used once:\n\n" + url + "\n\nIf you did not request this, you can ignore this email.\n\nStanley Tech Connect"
         })
       });
       const result = await response.json().catch(() => ({}));

@@ -96,6 +96,9 @@ class Query {
   then(resolve, reject) { return this.execute().then(resolve, reject); }
   async execute() {
     const params = [...this.values];
+    if ((this.action === "update" || this.action === "delete") && this.filters.length === 0) {
+      return { data: null, error: { message: "Refusing an UPDATE or DELETE without a filter." } };
+    }
     const where = this.filters.length ? " WHERE " + this.filters.join(" AND ") : "";
     const returning = " RETURNING " + this.projection;
     let sql;
@@ -120,8 +123,11 @@ class Query {
         }).join(", ") + ")");
         sql = "INSERT INTO " + this.table + " (" + names + ") VALUES " + tuples.join(", ");
         if (this.action === "upsert" && this.conflict) {
-          const conflict = this.conflict.split(",").map(x => ident(x.trim())).join(", ");
-          const updates = keys.filter(k => !this.conflict.split(",").includes(k));
+          const conflictKeys = this.conflict.split(",").map(x => x.trim());
+          if (!conflictKeys.length || conflictKeys.some(x => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(x))) throw new Error("Invalid upsert conflict columns.");
+          const conflict = conflictKeys.map(ident).join(", ");
+          const conflictKeys = this.conflict.split(",").map(x => x.trim());
+          const updates = keys.filter(k => !conflictKeys.includes(k));
           sql += this.ignoreDuplicates ? " ON CONFLICT (" + conflict + ") DO NOTHING" :
             updates.length ? " ON CONFLICT (" + conflict + ") DO UPDATE SET " +
               updates.map(k => ident(k) + " = EXCLUDED." + ident(k)).join(", ") : " ON CONFLICT (" + conflict + ") DO NOTHING";

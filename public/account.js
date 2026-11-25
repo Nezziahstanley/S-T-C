@@ -336,7 +336,7 @@
           const analytics = overview?.analytics || {};
           const revenueItems = Object.entries(analytics.revenue_by_currency || {}).map(([currency,amount])=>[currency,Number(amount)||0]);
           const revenuePanel = adminChartPanel("Successful payments (latest 1,000)",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount])));
-          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status)+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status)+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status)+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status)+revenuePanel+'</div>';
+          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status)+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status)+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status)+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status)+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity)+revenuePanel+'</div>';
           const groups = [
             ["People & access",["staff","profiles","enrollments","certificates","awards"]],
             ["Business operations",["enquiries","projects","quotes","invoices","payments","tickets"]],

@@ -505,7 +505,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     "training enrolment count","issued certificate count","issued award count","profile count","client count",
     "active staff count","service count","published post count","portfolio count","media count",
     "recent enquiries","recent projects","recent support tickets","project status data","payment summary data",
-    "enrolment status data","enquiry status data","recent audit activity"
+    "enrolment status data","enquiry status data","recent audit activity","administrator notifications"
   ];
   const results = await Promise.all([
     db.from("stc_enquiries").select("id", { count:"exact", head:true }),
@@ -531,7 +531,8 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     db.from("stc_payments").select("amount,currency,status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_training_enrollments").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_enquiries").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
-    db.from("stc_audit_logs").select("actor,action,entity,entity_id,created_at,details").order("created_at", { ascending:false }).limit(12)
+    db.from("stc_audit_logs").select("actor,action,entity,entity_id,created_at,details").order("created_at", { ascending:false }).limit(12),
+    db.from("stc_notifications").select("*").eq("user_id",req.user.id).order("created_at", { ascending:false }).limit(8)
   ]);
   const failedIndex = results.findIndex(item => item.error);
   if (failedIndex !== -1) {
@@ -567,7 +568,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
       enquiry_status:groupByStatus(results[22].data),
       revenue_by_currency:revenueByCurrency
     },
-    activity:results[23].data||[]
+    activity:results[23].data||[],notifications:results[24].data||[]
   });
 });
 

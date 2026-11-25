@@ -248,11 +248,11 @@
   function render() {
     const hash = location.hash || "";
     const queryReset = new URLSearchParams(location.search).get("password-reset") === "1";
-    if (queryReset) return renderReset();
+    if (queryReset || new URLSearchParams(location.search).has("token")) return renderReset();
     if (hash === "#account/login") return renderLogin();
     if (hash === "#account/register") return renderRegister();
     if (hash === "#account/forgot-password") return renderForgot();
-    if (hash === "#account/reset-password") return renderReset();
+    if (hash.startsWith("#account/reset-password")) return renderReset();
     if (hash === "#account/change-password") return renderChangePassword();
     if (hash === "#dashboard" || hash.startsWith("#dashboard/")) return renderDashboard();
     if (!hash.startsWith("#account/") && !hash.startsWith("#dashboard/") && hash !== "#dashboard") {

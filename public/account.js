@@ -150,19 +150,19 @@
     });
   }
   const staffResources = {
-    manager:["enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media","profiles","enrollments","certificates","awards"],
+    manager:["enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media","profiles","clients","students","enrollments","certificates","awards"],
     project_manager:["enquiries","projects","tickets"],
     finance:["quotes","invoices","payments"],
     support:["enquiries","tickets"],
     content_editor:["services","posts","portfolio","media"]
   };
   const roleNames = { super_admin:"Administrator",manager:"Operations Manager",project_manager:"Project Manager",finance:"Finance Officer",support:"Customer Support",content_editor:"Content Editor",student:"Student",client:"Client" };
-  const resourceNames = { staff:"Staff & Permissions", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
+  const resourceNames = { staff:"Staff & Permissions", profiles:"User Profiles", clients:"Client Management", students:"Student Management", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
   function metric(label,value) { return '<article class="stc-dash-metric"><small>'+esc(label)+'</small><strong>'+esc(value ?? 0)+'</strong></article>'; }
 
   const adminNavGroups = [
     ["Overview", [["Overview", ""]]],
-    ["People & learning", [["Staff & permissions","staff"],["User profiles","profiles"],["Training enrolments","enrollments"],["Certificates","certificates"],["Awards","awards"]]],
+    ["People & learning", [["Staff & permissions","staff"],["User profiles","profiles"],["Student management","students"],["Client management","clients"],["Training enrolments","enrollments"],["Certificates","certificates"],["Awards","awards"]]],
     ["Business operations", [["Enquiries","enquiries"],["Projects","projects"],["Quotes","quotes"],["Invoices","invoices"],["Payments","payments"],["Support tickets","tickets"]]],
     ["Website & content", [["Services","services"],["Posts & announcements","posts"],["Portfolio","portfolio"],["Media library","media"]]]
   ];
@@ -284,7 +284,7 @@
       const allowedResources = role === "super_admin" ? Object.keys(resourceNames) : (staffResources[role] || []);
       if (requestedResource && allowedResources.includes(requestedResource)) {
         const result = await request("/api/admin/"+encodeURIComponent(requestedResource));
-        const items = result.items || [];
+        const items = result.items || result.students || [];
         const keys = Object.keys(items[0] || {}).filter(k=>!["raw","content"].includes(k));
         const heading = resourceNames[requestedResource] || requestedResource;
         const columns = keys.slice(0,7).map(key=>'<th>'+esc(key.replaceAll("_"," "))+'</th>').join("");

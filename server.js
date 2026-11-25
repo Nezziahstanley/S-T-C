@@ -13,6 +13,9 @@ app.set("trust proxy", 1);
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, "public");
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false });
+const enquiryLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false });
 
 const {
   STC_ADMIN_EMAIL,
@@ -37,13 +40,11 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false
 }));
+app.use("/api/better-auth", authLimiter);
 app.all("/api/better-auth/*splat", toNodeHandler(auth));
 app.use(express.json({ limit: "12mb", verify: (req, _res, buffer) => { if (req.originalUrl === "/api/paystack/webhook") req.rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: false, limit: "30kb" }));
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false });
-const enquiryLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false });
 app.use("/api", apiLimiter);
 app.use(express.static(PUBLIC_DIR, { extensions: ["html"] }));
 

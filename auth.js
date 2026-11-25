@@ -34,7 +34,7 @@ export const auth = betterAuth({
     minPasswordLength: 10,
     maxPasswordLength: 128,
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, token }) => {
       const apiKey = process.env.RESEND_API_KEY;
       const from = process.env.STC_EMAIL_FROM;
       if (!apiKey || !from || !from.includes("@")) {
@@ -50,7 +50,7 @@ export const auth = betterAuth({
           from,
           to: [user.email],
           subject: "Reset your Stanley Tech Connect password",
-          text: "Hello " + (user.name || user.email) + ",\n\nUse the following secure link to reset your password. This link is time-limited and can only be used once:\n\n" + url + "\n\nIf you did not request this, you can ignore this email.\n\nStanley Tech Connect"
+          text: "Hello " + (user.name || user.email) + ",\n\nUse the following secure link to reset your password. This link is time-limited and can only be used once:\n\n" + new URL("/?token=" + encodeURIComponent(token) + "#account/reset-password", baseURL).toString() + "\n\nIf you did not request this, you can ignore this email.\n\nStanley Tech Connect"
         })
       });
       const result = await response.json().catch(() => ({}));

@@ -191,7 +191,7 @@
       const width = Math.max(0, Math.min(100, amount / max * 100));
       return '<div class="stc-admin-bar-row"><div><span>'+esc(label.replaceAll("_"," "))+'</span><strong>'+esc(amount.toLocaleString()+suffix)+'</strong></div><div class="stc-admin-bar-track"><i style="width:'+width+'%"></i></div></div>';
     }).join("") : '<p class="stc-dash-empty">No records available for this chart yet.</p>';
-    return '<section class="stc-dash-panel stc-admin-chart"><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">LIVE DATABASE SUMMARY</span><h3>'+esc(title)+'</h3></div><span>'+entries.length+' categories</span></div>'+rows+'</section>';
+    return '<section class="stc-dash-panel stc-admin-chart"><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">RECORD BREAKDOWN</span><h3>'+esc(title)+'</h3></div><span>'+entries.length+' categories</span></div>'+rows+'</section>';
   }
 
   function simpleTable(title, rows, columns) {
@@ -257,8 +257,8 @@
           const cards = Object.entries(metrics).map(([key,value])=>metric(metricLabels[key] || key.replaceAll("_"," "),value)).join("");
           const analytics = overview?.analytics || {};
           const revenueItems = Object.entries(analytics.revenue_by_currency || {}).map(([currency,amount])=>[currency,Number(amount)||0]);
-          const revenuePanel = adminChartPanel("Successful payment volume",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount.toLocaleString(undefined,{maximumFractionDigits:2})])));
-          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status",analytics.project_status)+adminChartPanel("Payment status",analytics.payment_status)+adminChartPanel("Training enrolment status",analytics.enrolment_status)+adminChartPanel("Enquiry status",analytics.enquiry_status)+revenuePanel+'</div>';
+          const revenuePanel = adminChartPanel("Successful payments (latest 1,000)",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount])));
+          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status)+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status)+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status)+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status)+revenuePanel+'</div>';
           const groups = [
             ["People & access",["staff","profiles","enrollments","certificates","awards"]],
             ["Business operations",["enquiries","projects","quotes","invoices","payments","tickets"]],

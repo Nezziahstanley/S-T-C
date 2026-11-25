@@ -183,6 +183,17 @@
     return role === "super_admin" ? '</div>' : '';
   }
 
+  function adminChartPanel(title, values, suffix = "") {
+    const entries = Object.entries(values || {}).sort((a,b) => Number(b[1]) - Number(a[1]));
+    const max = Math.max(1, ...entries.map(([,value]) => Number(value) || 0));
+    const rows = entries.length ? entries.map(([label,value]) => {
+      const amount = Number(value) || 0;
+      const width = Math.max(0, Math.min(100, amount / max * 100));
+      return '<div class="stc-admin-bar-row"><div><span>'+esc(label.replaceAll("_"," "))+'</span><strong>'+esc(amount.toLocaleString()+suffix)+'</strong></div><div class="stc-admin-bar-track"><i style="width:'+width+'%"></i></div></div>';
+    }).join("") : '<p class="stc-dash-empty">No records available for this chart yet.</p>';
+    return '<section class="stc-dash-panel stc-admin-chart"><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">LIVE DATABASE SUMMARY</span><h3>'+esc(title)+'</h3></div><span>'+entries.length+' categories</span></div>'+rows+'</section>';
+  }
+
   function simpleTable(title, rows, columns) {
     const body = (rows || []).slice(0,6).map(row => '<tr>'+columns.map(key=>'<td>'+esc(row[key] ?? "—")+'</td>').join("")+'</tr>').join("");
     return '<section class="stc-dash-panel"><h3>'+esc(title)+'</h3>'+(body ? '<div class="stc-table-wrap"><table><tbody>'+body+'</tbody></table></div>' : '<p class="stc-dash-empty">Nothing to display yet.</p>')+'</section>';
@@ -242,18 +253,19 @@
         }));
         const metrics = overview?.metrics || {};
         if (role === "super_admin") {
-          const metricLabels = { enquiries:"New enquiries",projects:"Projects",invoices:"Invoices",tickets:"Support tickets",payments:"Payments",students:"Students",training_applications:"Training applications",certificates_issued:"Certificates issued",awards_issued:"Awards issued" };
+          const metricLabels = { enquiries:"Enquiries",projects:"Projects",invoices:"Invoices",tickets:"Support tickets",payments:"Payments",students:"Students",training_applications:"Training enrolments",certificates_issued:"Certificates issued",awards_issued:"Awards issued",profiles:"Registered profiles",clients:"Clients",staff:"Active staff roles",services:"Services",posts:"Posts",portfolio:"Portfolio items",media:"Media records" };
           const cards = Object.entries(metrics).map(([key,value])=>metric(metricLabels[key] || key.replaceAll("_"," "),value)).join("");
-          const chartItems = [["Enquiries",metrics.enquiries||0],["Projects",metrics.projects||0],["Support tickets",metrics.tickets||0]];
-          const maxValue = Math.max(1,...chartItems.map(item=>Number(item[1])||0));
-          const chart = '<section class="stc-dash-panel stc-admin-chart"><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">ACTIVITY SNAPSHOT</span><h3>Workload overview</h3></div><span>Current record totals</span></div>'+chartItems.map(([label,value])=>'<div class="stc-admin-bar-row"><div><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div><div class="stc-admin-bar-track"><i style="width:'+Math.max(0,Math.min(100,(Number(value)||0)/maxValue*100))+'%"></i></div></div>').join("")+'</section>';
+          const analytics = overview?.analytics || {};
+          const revenueItems = Object.entries(analytics.revenue_by_currency || {}).map(([currency,amount])=>[currency,Number(amount)||0]);
+          const revenuePanel = adminChartPanel("Successful payment volume",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount.toLocaleString(undefined,{maximumFractionDigits:2})])));
+          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status",analytics.project_status)+adminChartPanel("Payment status",analytics.payment_status)+adminChartPanel("Training enrolment status",analytics.enrolment_status)+adminChartPanel("Enquiry status",analytics.enquiry_status)+revenuePanel+'</div>';
           const groups = [
             ["People & access",["staff","profiles","enrollments","certificates","awards"]],
             ["Business operations",["enquiries","projects","quotes","invoices","payments","tickets"]],
             ["Website & content",["services","posts","portfolio","media"]]
           ];
           const nav = groups.map(([heading,items])=>'<section class="stc-admin-nav-group"><h3>'+esc(heading)+'</h3><div>'+items.map(resource=>'<a href="#dashboard/admin/'+encodeURIComponent(resource)+'">'+esc(resourceNames[resource]||resource)+' <span>→</span></a>').join("")+'</div></section>').join("");
-          const recent = '<div class="stc-dash-grid stc-admin-recent">'+simpleTable("Recent enquiries",overview?.enquiries||[],["name","service","status","created_at"])+simpleTable("Latest projects",overview?.projects||[],["title","service","status","progress"])+simpleTable("Support activity",overview?.tickets||[],["subject","priority","status","created_at"])+'</div>';
+          const recent = '<div class="stc-dash-grid stc-admin-recent">'+simpleTable("Recent enquiries",overview?.enquiries||[],["name","service","status","created_at"])+simpleTable("Latest projects",overview?.projects||[],["title","service","status","progress"])+simpleTable("Support activity",overview?.tickets||[],["subject","priority","status","created_at"])+simpleTable("Administrator activity log",overview?.activity||[],["action","entity","entity_id","created_at"])+'</div>';
           content = '<div class="stc-admin-welcome"><div><span class="stc-admin-eyebrow">STC CONTROL CENTRE</span><h2>Good day, '+esc(name)+'</h2><p>Monitor the business, manage people and keep STC operations moving.</p></div><div class="stc-admin-welcome-meta"><span class="stc-admin-live-dot"></span><span>Administrator access</span><small>'+new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})+'</small></div></div><div class="stc-admin-section-title"><div><span class="stc-admin-eyebrow">AT A GLANCE</span><h3>Business overview</h3></div><span>Live totals from STC records</span></div><div class="stc-dash-metrics stc-admin-metrics">'+cards+'</div><div class="stc-admin-overview-grid">'+chart+'<section class="stc-dash-panel stc-admin-shortcuts"><span class="stc-admin-eyebrow">QUICK ACTIONS</span><h3>Go to a workspace</h3><a href="#dashboard/admin/enquiries">Review enquiries <span>→</span></a><a href="#dashboard/admin/projects">Manage projects <span>→</span></a><a href="#dashboard/admin/staff">Staff & permissions <span>→</span></a><a href="#dashboard/admin/invoices">Invoices & payments <span>→</span></a></section></div><div class="stc-admin-section-title"><div><span class="stc-admin-eyebrow">MANAGEMENT</span><h3>Admin modules</h3></div><span>Choose a section to manage its records</span></div><div class="stc-admin-module-grid">'+nav+'</div><div class="stc-admin-section-title"><div><span class="stc-admin-eyebrow">LATEST UPDATES</span><h3>Recent activity</h3></div><span>Most recent records returned by STC</span></div>'+recent;
         } else {
           const cards = overview ? Object.entries(metrics).map(([k,v])=>metric(k.replaceAll("_"," "),v)).join("") : collections.map(x=>metric(resourceNames[x.resource]||x.resource,x.items.length)).join("");

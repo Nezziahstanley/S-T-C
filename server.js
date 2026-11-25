@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createClient } from "@supabase/supabase-js";
+import { db } from "./database.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
@@ -26,9 +27,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
-});
 const authClient = createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY,
@@ -92,7 +90,7 @@ async function verifiedUser(req) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return null;
-  const { data, error } = await db.auth.getUser(token);
+  const { data, error } = await authClient.auth.getUser(token);
   return error ? null : data.user;
 }
 

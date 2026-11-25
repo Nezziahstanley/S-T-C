@@ -159,6 +159,30 @@
   const roleNames = { super_admin:"Administrator",manager:"Operations Manager",project_manager:"Project Manager",finance:"Finance Officer",support:"Customer Support",content_editor:"Content Editor",student:"Student",client:"Client" };
   const resourceNames = { staff:"Staff & Permissions", enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support Tickets",services:"Services",posts:"Posts",portfolio:"Portfolio",media:"Media",profiles:"Profiles",enrollments:"Training Enrolments",certificates:"Certificates",awards:"Awards" };
   function metric(label,value) { return '<article class="stc-dash-metric"><small>'+esc(label)+'</small><strong>'+esc(value ?? 0)+'</strong></article>'; }
+
+  const adminNavGroups = [
+    ["Overview", [["Overview", ""]]],
+    ["People & learning", [["Staff & permissions","staff"],["User profiles","profiles"],["Training enrolments","enrollments"],["Certificates","certificates"],["Awards","awards"]]],
+    ["Business operations", [["Enquiries","enquiries"],["Projects","projects"],["Quotes","quotes"],["Invoices","invoices"],["Payments","payments"],["Support tickets","tickets"]]],
+    ["Website & content", [["Services","services"],["Posts & announcements","posts"],["Portfolio","portfolio"],["Media library","media"]]]
+  ];
+  function adminSidebar(active) {
+    return '<nav class="stc-admin-side-nav" aria-label="Administrator navigation">' +
+      adminNavGroups.map(([group, links]) => '<section class="stc-admin-side-group"><h3>'+esc(group)+'</h3>' +
+        links.map(([label, resource]) => {
+          const href = resource ? '#dashboard/admin/'+resource : '#dashboard/admin';
+          const selected = (resource || '') === active;
+          return '<a href="'+href+'"'+(selected?' aria-current="page" class="is-active"':'')+'>'+esc(label)+'<span>›</span></a>';
+        }).join('') + '</section>').join('') +
+      '<div class="stc-admin-side-foot"><span>STC ADMINISTRATION</span><small>Secure management workspace</small></div></nav>';
+  }
+  function adminLayoutStart(role, active) {
+    return role === "super_admin" ? '<div class="stc-admin-layout"><aside class="stc-admin-sidebar">'+adminSidebar(active)+'</aside>' : '';
+  }
+  function adminLayoutEnd(role) {
+    return role === "super_admin" ? '</div>' : '';
+  }
+
   function simpleTable(title, rows, columns) {
     const body = (rows || []).slice(0,6).map(row => '<tr>'+columns.map(key=>'<td>'+esc(row[key] ?? "—")+'</td>').join("")+'</tr>').join("");
     return '<section class="stc-dash-panel"><h3>'+esc(title)+'</h3>'+(body ? '<div class="stc-table-wrap"><table><tbody>'+body+'</tbody></table></div>' : '<p class="stc-dash-empty">Nothing to display yet.</p>')+'</section>';
@@ -178,7 +202,7 @@
         const rows = items.slice(0,100).map(item => "<tr>"+keys.map(key=>"<td>"+esc(item[key] ?? "—")+"</td>").join("")+"</tr>").join("");
         const heading = resourceNames[requestedResource] || requestedResource;
         const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="STC account user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
-        showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+'<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main></div>');
+        showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,requestedResource)+'<main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+'<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main>'+adminLayoutEnd(role)+'</div>');
         $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         const assignForm = $("#stcAssignStaffForm");
         assignForm?.addEventListener("submit", async event => {
@@ -237,7 +261,7 @@
           content = '<div class="stc-dash-welcome"><div><span class="stc-auth-kicker">STAFF WORKSPACE</span><h2>Welcome, '+esc(name)+'</h2><p>Your workspace is configured for your assigned responsibilities.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div><nav class="stc-dash-resource-nav">'+nav+'</nav><div class="stc-dash-metrics">'+cards+'</div><div class="stc-dash-grid">'+collections.slice(0,4).map(x=>simpleTable(resourceNames[x.resource]||x.resource,x.items,Object.keys(x.items[0]||{}).slice(0,4))).join("")+'</div>';
         }
       }
-      showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main">'+content+'<div class="stc-dash-footer"><a href="#account/change-password">Change password</a><a href="#home">Visit public website</a></div></main></div>');
+      showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,"")+'<main class="stc-dash-main">'+content+'<div class="stc-dash-footer"><a href="#account/change-password">Change password</a><a href="#home">Visit public website</a></div></main>'+adminLayoutEnd(role)+'</div>');
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
     } catch (error) {
       if (error.status === 401) clearSession();

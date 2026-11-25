@@ -1,0 +1,30 @@
+name: STC staging administrator bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-admin:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.STC_STAGING_DATABASE_URL }}
+      BETTER_AUTH_SECRET: ${{ secrets.STC_STAGING_BETTER_AUTH_SECRET }}
+      BETTER_AUTH_URL: ${{ secrets.STC_STAGING_BETTER_AUTH_URL }}
+      STC_ADMIN_EMAIL: stanleytechconnect@gmail.com
+      STC_BOOTSTRAP_ADMIN_ID: cbddedf1-a2e8-40c6-bc80-4dc6cc1eb9ba
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Create or verify the staging administrator account
+        run: node scripts/bootstrap-staging-admin.js

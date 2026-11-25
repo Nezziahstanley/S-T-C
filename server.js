@@ -24,16 +24,12 @@ const {
   PAYSTACK_SECRET_KEY
 } = process.env;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
-  process.exit(1);
-}
-
-const authClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } }
-);
+const supabaseAuthKey = SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY;
+const authClient = SUPABASE_URL && supabaseAuthKey
+  ? createClient(SUPABASE_URL, supabaseAuthKey, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+    })
+  : null;
 
 app.disable("x-powered-by");
 app.use(helmet({
@@ -99,6 +95,7 @@ async function verifiedUser(req) {
   const authorization = req.headers.authorization || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
   if (!token || !authClient) return null;
+  if (!authClient) return null;
   const { data, error } = await authClient.auth.getUser(token);
   return error ? null : data.user;
 }
@@ -635,10 +632,13 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
 app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
   const email = clean(req.body?.email).toLowerCase();
   if (!validEmail(email)) return res.status(400).json({ error: "Enter the email address on your STC account." });
-  const redirectTo = (STC_PUBLIC_URL || "https://stanley-tech-connect.onrender.com").replace(/\/$/, "") + "/?password-reset=1";
-  const { error } = await authClient.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) return sendError(res, error, 400);
-  res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });
+  const redirectTo = (STC_PUBLIC_URL || process.env.BETTER_AUTH_URL || "https://stc-staging.onrender.com").replace(/\/$/, "") + "/?password-reset=1";
+  try {
+    await auth.api.requestPasswordReset({ body: { email, redirectTo } });
+    res.json({ message: "If an account exists for that email, a secure password-reset link has been sent." });
+  } catch (error) {
+    return sendError(res, error, 400);
+  }
 });
 app.post("/api/auth/password/change", requireUser, authLimiter, async (req, res) => {
   const current_password = typeof req.body?.current_password === "string" ? req.body.current_password : "";
@@ -646,22 +646,29 @@ app.post("/api/auth/password/change", requireUser, authLimiter, async (req, res)
   if (!current_password || password.length < 10 || password.length > 128) {
     return res.status(400).json({ error: "Enter your current password and a new password of at least 10 characters." });
   }
-  const { error: verifyError } = await authClient.auth.signInWithPassword({
-    email: req.user.email, password: current_password
-  });
-  if (verifyError) return res.status(400).json({ error: "Your current password is incorrect." });
-  const { error } = await db.auth.admin.updateUserById(req.user.id, { password });
-  if (error) return sendError(res, error, 400);
+  try {
+    await auth.api.changePassword({
+      body: { currentPassword: current_password, newPassword: password, revokeOtherSessions: true },
+      headers: fromNodeHeaders(req.headers)
+    });
+  } catch (error) {
+    return sendError(res, error, 400);
+  }
   await audit(req.user, "change_password", "auth_user", req.user.id, {});
   res.json({ message: "Your password has been changed successfully." });
 });
-app.post("/api/auth/password/update", requireUser, authLimiter, async (req, res) => {
+app.post("/api/auth/password/update", authLimiter, async (req, res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
-  if (password.length < 10 || password.length > 128) return res.status(400).json({ error: "Use a password between 10 and 128 characters." });
-  const { error } = await db.auth.admin.updateUserById(req.user.id, { password });
-  if (error) return sendError(res, error, 400);
-  await audit(req.user, "change_password", "auth_user", req.user.id, {});
-  res.json({ message: "Your password has been updated. Keep it somewhere secure." });
+  const token = clean(req.body?.token);
+  if (password.length < 10 || password.length > 128 || !token) {
+    return res.status(400).json({ error: "Use a password between 10 and 128 characters and provide the reset token." });
+  }
+  try {
+    await auth.api.resetPassword({ body: { newPassword: password, token } });
+    res.json({ message: "Your password has been updated. You can now sign in." });
+  } catch (error) {
+    return sendError(res, error, 400);
+  }
 });
 app.post("/api/account/avatar", requireUser, async (req, res) => {
   const contentType = clean(req.body?.content_type);

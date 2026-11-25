@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { PostgresDialect } from "kysely";
 import { Pool } from "pg";
+import { randomUUID } from "node:crypto";
 
 const databaseUrl = process.env.DATABASE_URL;
 const secret = process.env.BETTER_AUTH_SECRET;
@@ -62,7 +63,12 @@ export const auth = betterAuth({
   },
   advanced: {
     database: {
-      generateId: "uuid"
+      generateId: options => {
+        if (options.model === "user" && process.env.STC_BOOTSTRAP_ADMIN_ID) {
+          return process.env.STC_BOOTSTRAP_ADMIN_ID;
+        }
+        return randomUUID();
+      }
     }
   }
 });

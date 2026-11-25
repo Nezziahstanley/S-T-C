@@ -545,6 +545,17 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     groups[key] = (groups[key] || 0) + 1;
     return groups;
   }, {});
+  const monthlyActivity = {};
+  const monthCutoff = new Date();
+  monthCutoff.setMonth(monthCutoff.getMonth() - 5);
+  for (const rows of [results[19].data,results[20].data,results[21].data,results[22].data]) {
+    for (const row of rows || []) {
+      const date = new Date(row.created_at);
+      if (!Number.isFinite(date.getTime()) || date < monthCutoff) continue;
+      const month = date.toISOString().slice(0,7);
+      monthlyActivity[month] = (monthlyActivity[month] || 0) + 1;
+    }
+  }
   const revenueByCurrency = {};
   for (const payment of results[20].data || []) {
     if (String(payment.status).toLowerCase() !== "success") continue;
@@ -566,7 +577,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
       payment_status:groupByStatus(results[20].data),
       enrolment_status:groupByStatus(results[21].data),
       enquiry_status:groupByStatus(results[22].data),
-      revenue_by_currency:revenueByCurrency
+      revenue_by_currency:revenueByCurrency,monthly_activity:monthlyActivity
     },
     activity:results[23].data||[],notifications:results[24].data||[]
   });

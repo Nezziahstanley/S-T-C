@@ -436,7 +436,7 @@ app.get("/api/student/dashboard", requireUser, async (req, res) => {
   const results = await Promise.all([
     db.from("stc_training_enrollments").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
     db.from("stc_notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(30),
-    db.from("stc_certificates").select("id,certificate_number,course_name,issued_at,status").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),
+    db.from("stc_certificates").select("id,certificate_number,programme,issued_at,status").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false }),
     db.from("stc_awards").select("id,award_number,award_title,issued_at,status").eq("user_id", uid).eq("status", "issued").order("issued_at", { ascending: false })
   ]);
   const error = results.find(item => item.error)?.error;
@@ -603,7 +603,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     db.from("stc_invoices").select("id", { count: "exact", head: true }),
     db.from("stc_tickets").select("id", { count: "exact", head: true }),
     db.from("stc_payments").select("id", { count: "exact", head: true }),
-    db.from("stc_profiles").select("id", { count: "exact", head: true }).eq("account_type","student"),
+    db.from("stc_profiles").select("user_id", { count: "exact", head: true }).eq("account_type","student"),
     db.from("stc_training_enrollments").select("id", { count: "exact", head: true }),
     db.from("stc_certificates").select("id", { count: "exact", head: true }).eq("status","issued"),
     db.from("stc_awards").select("id", { count: "exact", head: true }).eq("status","issued"),
@@ -667,7 +667,7 @@ app.post("/api/account/avatar", requireUser, async (req, res) => {
   const { error: uploadError } = await db.storage.from("stc-private-files").upload(key, bytes, { contentType, upsert: false });
   if (uploadError) return sendError(res, uploadError, 400);
   const { data: old } = await db.from("stc_profiles").select("avatar_key").eq("user_id", req.user.id).maybeSingle();
-  const { error } = await db.from("stc_profiles").upsert({ user_id: req.user.id, avatar_key: key, profile_updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  const { error } = await db.from("stc_profiles").upsert({ user_id: req.user.id, avatar_key: key, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
   if (error) { await db.storage.from("stc-private-files").remove([key]); return sendError(res, error, 400); }
   if (old?.avatar_key) await db.storage.from("stc-private-files").remove([old.avatar_key]);
   const signed = await db.storage.from("stc-private-files").createSignedUrl(key, 600);

@@ -3,6 +3,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { createClient } from "@supabase/supabase-js";
 import { db } from "./database.js";
+import { auth } from "./auth.js";
+import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
@@ -50,6 +52,7 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false
 }));
+app.all("/api/better-auth/*splat", toNodeHandler(auth));
 app.use(express.json({ limit: "12mb", verify: (req, _res, buffer) => { if (req.originalUrl === "/api/paystack/webhook") req.rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: false, limit: "30kb" }));
 
@@ -87,9 +90,15 @@ async function sendStcEmail({ to, subject, text, replyTo }) {
 
 
 async function verifiedUser(req) {
-  const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token) return null;
+  try {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    if (session?.user) return session.user;
+  } catch (error) {
+    console.error("Better Auth session lookup failed:", error.message);
+  }
+  const authorization = req.headers.authorization || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  if (!token || !authClient) return null;
   const { data, error } = await authClient.auth.getUser(token);
   return error ? null : data.user;
 }

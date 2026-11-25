@@ -26,12 +26,39 @@ export const auth = betterAuth({
     schemaName: "auth"
   },
   baseURL,
+  basePath: "/api/better-auth",
   secret,
   trustedOrigins: [baseURL],
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
-    maxPasswordLength: 128
+    maxPasswordLength: 128,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      const apiKey = process.env.RESEND_API_KEY;
+      const from = process.env.STC_EMAIL_FROM;
+      if (!apiKey || !from || !from.includes("@")) {
+        throw new Error("Password reset email is not ready. Configure RESEND_API_KEY and a verified STC_EMAIL_FROM address.");
+      }
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from,
+          to: [user.email],
+          subject: "Reset your Stanley Tech Connect password",
+          text: "Hello " + (user.name || user.email) + ",\\n\\nUse the following secure link to reset your password. This link is time-limited and can only be used once:\\n\\n" + url + "\\n\\nIf you did not request this, you can ignore this email.\\n\\nStanley Tech Connect"
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error("Better Auth reset email failed:", response.status, result.message || result.name || "Unknown Resend error");
+        throw new Error("Unable to send the password reset email.");
+      }
+    }
   },
   advanced: {
     database: {

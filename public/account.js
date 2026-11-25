@@ -1,36 +1,18 @@
 (() => {
   const rootId = "accountRoot";
-  const accessKey = "stc_access_token";
-  const refreshKey = "stc_refresh_token";
   const $ = (selector, root = document) => root.querySelector(selector);
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-  const token = () => sessionStorage.getItem(accessKey) || "";
-  const saveSession = data => {
-    if (data?.access_token) sessionStorage.setItem(accessKey, data.access_token);
-    if (data?.refresh_token) sessionStorage.setItem(refreshKey, data.refresh_token);
+  const token = () => "";
+  const saveSession = () => {};
+  const clearSession = () => {
+    fetch("/api/better-auth/sign-out", { method:"POST", credentials:"same-origin" }).catch(() => {});
   };
-  const clearSession = () => { sessionStorage.removeItem(accessKey); sessionStorage.removeItem(refreshKey); };
-  async function request(url, options = {}, bearer = token()) {
+  async function request(url, options = {}) {
     const headers = { "Content-Type":"application/json", ...(options.headers || {}) };
-    if (bearer) headers.Authorization = "Bearer " + bearer;
-    let response = await fetch(url, { ...options, headers });
-    if (response.status === 401 && bearer && bearer === token() && sessionStorage.getItem(refreshKey) && url !== "/api/auth/refresh") {
-      const refreshResponse = await fetch("/api/auth/refresh", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ refresh_token:sessionStorage.getItem(refreshKey) })
-      });
-      const refreshed = await refreshResponse.json().catch(() => ({}));
-      if (refreshResponse.ok && refreshed.access_token) {
-        saveSession(refreshed);
-        headers.Authorization = "Bearer " + refreshed.access_token;
-        response = await fetch(url, { ...options, headers });
-      } else {
-        clearSession();
-      }
-    }
+    const response = await fetch(url, { ...options, headers, credentials:"same-origin" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(data.error || "The request could not be completed.");
+      const error = new Error(data.error || data.message || "The request could not be completed.");
       error.status = response.status;
       throw error;
     }
@@ -92,9 +74,10 @@
       '<div class="stc-auth-inline"><a href="#account/forgot-password">Forgot password?</a></div><button class="stc-auth-submit" type="submit">Sign in to STC <span>→</span></button>'+status("stcLoginFormStatus")+'</form><p class="stc-auth-footnote">New to STC? <a href="#account/register">Create an account</a></p>'
     ));
     bindForm("stcLoginForm", async data => {
-      const result = await request("/api/auth/password/sign-in", { method:"POST", body:JSON.stringify({ email:data.get("email"), password:data.get("password") }) }, "");
-      saveSession(result);
-      location.hash = result.role === "super_admin" ? "#dashboard/admin" : ["manager","project_manager","finance","support","content_editor"].includes(result.role) ? "#dashboard/staff" : result.role === "student" ? "#dashboard/student" : "#dashboard/client";
+      await request("/api/better-auth/sign-in/email", { method:"POST", body:JSON.stringify({ email:data.get("email"), password:data.get("password"), rememberMe:true }) });
+      const me = await request("/api/auth/me");
+      const role = me.role || "client";
+      location.hash = role === "super_admin" ? "#dashboard/admin" : ["manager","project_manager","finance","support","content_editor"].includes(role) ? "#dashboard/staff" : role === "student" ? "#dashboard/student" : "#dashboard/client";
     });
   }
   function renderRegister() {
@@ -116,15 +99,13 @@
     };
     type.addEventListener("change", sync); sync();
     bindForm("stcRegisterForm", async data => {
-      const result = await request("/api/auth/register", { method:"POST", body:JSON.stringify(Object.fromEntries(data.entries())) }, "");
-      if (result.access_token) {
-        saveSession(result);
-        setStatus("stcRegisterFormStatus", result.message);
-        setTimeout(() => location.hash = result.role === "student" ? "#dashboard/student" : "#dashboard/client", 900);
-      } else {
-        setStatus("stcRegisterFormStatus", result.message);
-        $("#stcRegisterForm").reset(); sync();
-      }
+      const profile = Object.fromEntries(data.entries());
+      await request("/api/better-auth/sign-up/email", { method:"POST", body:JSON.stringify({
+        name:profile.full_name, email:profile.email, password:profile.password, callbackURL:location.origin + "/"
+      }) });
+      await request("/api/account/profile", { method:"POST", body:JSON.stringify(profile) });
+      setStatus("stcRegisterFormStatus", "Your STC account has been created successfully.");
+      setTimeout(() => location.hash = profile.account_type === "student" ? "#dashboard/student" : "#dashboard/client", 900);
     });
   }
   function renderForgot() {
@@ -132,13 +113,15 @@
       '<span class="stc-auth-kicker">ACCOUNT RECOVERY</span><h2>Forgot your password?</h2><p class="stc-auth-subtitle">Enter the email address linked to your STC account. We’ll send a secure reset link if an account exists.</p><form id="stcForgotForm" class="stc-auth-form">'+field("Email address","email","email","name@example.com",'required autocomplete="email"')+'<button class="stc-auth-submit" type="submit">Send reset link <span>→</span></button>'+status("stcForgotFormStatus")+'</form><p class="stc-auth-footnote"><a href="#account/login">← Back to sign in</a></p>'
     ));
     bindForm("stcForgotForm", async data => {
-      const result = await request("/api/auth/password/reset", { method:"POST", body:JSON.stringify({ email:data.get("email") }) }, "");
+      const result = await request("/api/better-auth/request-password-reset", { method:"POST", body:JSON.stringify({ email:data.get("email"), redirectTo:location.origin + "/#account/reset-password" }) });
       setStatus("stcForgotFormStatus", result.message);
     });
   }
   function recoveryToken() {
-    const params = new URLSearchParams(location.hash.replace(/^#/,""));
-    return params.get("access_token") || "";
+    const queryToken = new URLSearchParams(location.search).get("token");
+    const hash = location.hash.replace(/^#/,"");
+    const hashParams = new URLSearchParams(hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "");
+    return queryToken || hashParams.get("token") || "";
   }
   function renderReset() {
     const recovery = recoveryToken();
@@ -149,7 +132,7 @@
     ));
     bindForm("stcResetForm", async data => {
       if (data.get("password") !== data.get("confirm_password")) throw new Error("The passwords do not match.");
-      const result = await request("/api/auth/password/update", { method:"POST", body:JSON.stringify({ password:data.get("password") }) }, recovery);
+      const result = await request("/api/better-auth/reset-password", { method:"POST", body:JSON.stringify({ newPassword:data.get("password"), token:recovery }) });
       history.replaceState(null, "", location.pathname);
       clearSession();
       setStatus("stcResetFormStatus", result.message + " You can now sign in.");
@@ -162,7 +145,7 @@
     ));
     bindForm("stcChangeForm", async data => {
       if (data.get("password") !== data.get("confirm_password")) throw new Error("The passwords do not match.");
-      const result = await request("/api/auth/password/change", { method:"POST", body:JSON.stringify({ current_password:data.get("current_password"), password:data.get("password") }) });
+      const result = await request("/api/better-auth/change-password", { method:"POST", body:JSON.stringify({ currentPassword:data.get("current_password"), newPassword:data.get("password"), revokeOtherSessions:true }) });
       setStatus("stcChangeFormStatus", result.message);
     });
   }
@@ -181,7 +164,6 @@
     return '<section class="stc-dash-panel"><h3>'+esc(title)+'</h3>'+(body ? '<div class="stc-table-wrap"><table><tbody>'+body+'</tbody></table></div>' : '<p class="stc-dash-empty">Nothing to display yet.</p>')+'</section>';
   }
   async function renderDashboard() {
-    if (!token()) { location.hash="#account/login"; return; }
     showAccount('<div class="stc-dashboard-loading">Loading your secure STC workspace…</div>');
     try {
       const me = await request("/api/auth/me");
@@ -195,7 +177,7 @@
         const keys = Object.keys(items[0] || {});
         const rows = items.slice(0,100).map(item => "<tr>"+keys.map(key=>"<td>"+esc(item[key] ?? "—")+"</td>").join("")+"</tr>").join("");
         const heading = resourceNames[requestedResource] || requestedResource;
-        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="Supabase user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
+        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="STC account user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
         showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header><main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+'<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded</span></div>'+(rows?'<div class="stc-table-wrap"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k.replaceAll("_"," "))+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>':'<p class="stc-dash-empty">No records available in this section yet.</p>')+'</section></main></div>');
         $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         const assignForm = $("#stcAssignStaffForm");
@@ -271,7 +253,7 @@
     if (hash === "#account/register") return renderRegister();
     if (hash === "#account/forgot-password") return renderForgot();
     if (hash === "#account/reset-password") return renderReset();
-    if (hash === "#account/change-password") return token() ? renderChangePassword() : (location.hash="#account/login");
+    if (hash === "#account/change-password") return renderChangePassword();
     if (hash === "#dashboard" || hash.startsWith("#dashboard/")) return renderDashboard();
     if (!hash.startsWith("#account/") && !hash.startsWith("#dashboard/") && hash !== "#dashboard") {
       const el = document.getElementById(rootId);

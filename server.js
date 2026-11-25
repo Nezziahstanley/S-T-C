@@ -767,6 +767,30 @@ app.get("/api/admin/clients", requireStaff, async (req,res) => {
   if(invoices.error)return sendError(res,invoices.error,500);
   res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
 });
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });
@@ -786,7 +810,7 @@ app.post("/api/admin/:resource", requireStaff, async (req, res) => {
     const user_id = clean(req.body?.user_id);
     const role = clean(req.body?.role);
     const allowed = ["manager", "project_manager", "finance", "support", "content_editor"];
-    if (!user_id || !allowed.includes(role)) return res.status(400).json({ error: "Enter a valid Supabase user ID and staff role." });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !allowed.includes(role)) return res.status(400).json({ error: "Enter the UUID of an existing STC account and choose a valid staff role." });
     const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
     if (error) return sendError(res, error, 400);
     await audit(req.user, "assign_staff_role", "staff", user_id, { role });
@@ -817,6 +841,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
   if (resource === "staff") {
     if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
     const payload = {};
     if (["manager", "project_manager", "finance", "support", "content_editor"].includes(req.body?.role)) payload.role = req.body.role;
     if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;

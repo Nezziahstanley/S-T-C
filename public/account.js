@@ -270,6 +270,53 @@
     renderRows();
   }
 
+
+  const adminCreateFields = {
+    projects:{fields:["client_user_id","title","description","service","status","progress","start_date","due_date"],required:["client_user_id","title"],defaults:{status:"pending",progress:0}},
+    quotes:{fields:["client_user_id","enquiry_id","reference","title","description","amount","currency","status","valid_until"],required:["client_user_id","reference","title","amount","currency"],defaults:{currency:"NGN",status:"draft"}},
+    invoices:{fields:["client_user_id","project_id","quote_id","reference","description","amount","currency","status","due_date"],required:["client_user_id","reference","description","amount","currency"],defaults:{currency:"NGN",status:"pending"}},
+    tickets:{fields:["client_user_id","subject","message","status","priority"],required:["client_user_id","subject","message"],defaults:{status:"open",priority:"normal"}},
+    services:{fields:["slug","name","summary","description","active","sort_order"],required:["slug","name"],defaults:{active:true,sort_order:0}},
+    posts:{fields:["title","slug","excerpt","body","status","published_at"],required:["title","slug","body"],defaults:{status:"draft"}},
+    portfolio:{fields:["title","slug","category","summary","details","url","featured"],required:["title","slug"],defaults:{featured:false}}
+  };
+  function resourceCreateField(key,required,defaults) {
+    const label=esc(key.replaceAll("_"," "));
+    if(typeof defaults[key]==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(defaults[key]?'checked':'')+'> '+label+'</label>';
+    const long=["description","summary","excerpt","body","details","message"].includes(key);
+    const type=["amount","progress","sort_order","enquiry_id","project_id","quote_id"].includes(key)?"number":["start_date","due_date","valid_until","published_at"].includes(key)?"date":"text";
+    const value=defaults[key]??"";
+    const control=long?'<textarea name="'+esc(key)+'" rows="3" '+(required.includes(key)?"required":"")+'></textarea>':'<input name="'+esc(key)+'" type="'+type+'" value="'+esc(value)+'" '+(required.includes(key)?"required":"")+' '+(type==="number"?'step="any"':'')+'>';
+    return '<label class="stc-field">'+label+control+'</label>';
+  }
+  function bindAdminCreate(resource) {
+    const config=adminCreateFields[resource]; if(!config)return;
+    const button=$("#stcAdminCreateButton"), modal=$("#stcAdminCreateModal",root());
+    if(!button||!modal)return;
+    button.addEventListener("click",()=>{
+      const fields=config.fields.map(key=>resourceCreateField(key,config.required,config.defaults||{})).join("");
+      modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Add '+esc(resourceNames[resource]||resource)+'</h3><button type="button" id="stcAdminCreateClose" aria-label="Close">×</button></div><form id="stcAdminCreateForm">'+fields+'<div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcAdminCreateCancel">Cancel</button><button type="submit" class="stc-auth-submit">Create record</button></div><p id="stcAdminCreateStatus" class="stc-account-status" aria-live="polite"></p></form></div>';
+      modal.classList.remove("hidden");
+      const close=()=>modal.classList.add("hidden");
+      $("#stcAdminCreateClose",modal).onclick=close;$("#stcAdminCreateCancel",modal).onclick=close;
+      $("#stcAdminCreateForm",modal).addEventListener("submit",async event=>{
+        event.preventDefault();
+        const form=event.currentTarget,submit=$('button[type="submit"]',form);submit.disabled=true;submit.textContent="Creating…";
+        const payload={...config.defaults};
+        for(const key of config.fields){
+          const input=form.elements.namedItem(key);if(!input)continue;
+          if(input.type==="checkbox")payload[key]=input.checked;
+          else if(input.value.trim()==="")continue;
+          else if(input.type==="number")payload[key]=Number(input.value);
+          else payload[key]=input.value.trim();
+        }
+        try{await request("/api/admin/"+encodeURIComponent(resource),{method:"POST",body:JSON.stringify(payload)});modal.classList.add("hidden");await renderDashboard();}
+        catch(error){const status=$("#stcAdminCreateStatus",modal);status.textContent=error.message;status.classList.add("is-error");}
+        finally{submit.disabled=false;submit.textContent="Create record";}
+      });
+    });
+  }
+
   function simpleTable(title, rows, columns) {
     const body = (rows || []).slice(0,6).map(row => '<tr>'+columns.map(key=>'<td>'+esc(row[key] ?? "—")+'</td>').join("")+'</tr>').join("");
     return '<section class="stc-dash-panel"><h3>'+esc(title)+'</h3>'+(body ? '<div class="stc-table-wrap"><table><tbody>'+body+'</tbody></table></div>' : '<p class="stc-dash-empty">Nothing to display yet.</p>')+'</section>';
@@ -288,11 +335,12 @@
         const keys = Object.keys(items[0] || {}).filter(k=>!["raw","content"].includes(k));
         const heading = resourceNames[requestedResource] || requestedResource;
         const columns = keys.slice(0,7).map(key=>'<th>'+esc(key.replaceAll("_"," "))+'</th>').join("");
-        const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span></div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records"><span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div>';
+        const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records"><span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
         const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="STC account user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
         showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,requestedResource)+'<main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+resourceTable+'</main>'+adminLayoutEnd(role)+'</div>');
         $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         bindAdminResource(items,requestedResource);
+        bindAdminCreate(requestedResource);
         const assignForm = $("#stcAssignStaffForm");
         assignForm?.addEventListener("submit", async event => {
           event.preventDefault();

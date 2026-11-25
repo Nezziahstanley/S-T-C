@@ -1,4 +1,5 @@
 import { authDatabasePool } from "./auth.js";
+import { storage } from "./storage.js";
 
 // A small PostgreSQL query adapter for the existing STC API while routes are
 // migrated from Supabase's fluent query interface to native SQL.
@@ -154,4 +155,4 @@ class Query {
   }
 }
 
-export const db = { from: table => new Query(table) };
+export const db = { from: table => new Query(table), storage };

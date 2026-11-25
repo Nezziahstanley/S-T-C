@@ -126,7 +126,6 @@ class Query {
           const conflictKeys = this.conflict.split(",").map(x => x.trim());
           if (!conflictKeys.length || conflictKeys.some(x => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(x))) throw new Error("Invalid upsert conflict columns.");
           const conflict = conflictKeys.map(ident).join(", ");
-          const conflictKeys = this.conflict.split(",").map(x => x.trim());
           const updates = keys.filter(k => !conflictKeys.includes(k));
           sql += this.ignoreDuplicates ? " ON CONFLICT (" + conflict + ") DO NOTHING" :
             updates.length ? " ON CONFLICT (" + conflict + ") DO UPDATE SET " +

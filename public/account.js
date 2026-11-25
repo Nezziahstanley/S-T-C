@@ -183,15 +183,62 @@
     return role === "super_admin" ? '</div>' : '';
   }
 
-  function adminChartPanel(title, values, suffix = "") {
-    const entries = Object.entries(values || {}).sort((a,b) => Number(b[1]) - Number(a[1]));
-    const max = Math.max(1, ...entries.map(([,value]) => Number(value) || 0));
-    const rows = entries.length ? entries.map(([label,value]) => {
-      const amount = Number(value) || 0;
-      const width = Math.max(0, Math.min(100, amount / max * 100));
-      return '<div class="stc-admin-bar-row"><div><span>'+esc(label.replaceAll("_"," "))+'</span><strong>'+esc(amount.toLocaleString()+suffix)+'</strong></div><div class="stc-admin-bar-track"><i style="width:'+width+'%"></i></div></div>';
-    }).join("") : '<p class="stc-dash-empty">No records available for this chart yet.</p>';
-    return '<section class="stc-dash-panel stc-admin-chart"><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">RECORD BREAKDOWN</span><h3>'+esc(title)+'</h3></div><span>'+entries.length+' categories</span></div>'+rows+'</section>';
+  const adminChartPalette = ["#087fa9","#21a6b4","#67c6bb","#f0ad4e","#7586d8","#e17c91","#4d9c83","#9b8bd3"];
+  function adminChartPanel(title, values, key = "chart", defaultType = "bar", suffix = "") {
+    const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>a[0].localeCompare(b[0]));
+    const preference = (()=>{try{return JSON.parse(localStorage.getItem("stcAdminDashboardPrefs")||"{}")}catch{return {}}})();
+    const type = ["bar","donut","line"].includes(preference.types?.[key])?preference.types[key]:defaultType;
+    const hidden = preference.hidden?.includes(key);
+    return '<section class="stc-dash-panel stc-admin-chart" data-chart-key="'+esc(key)+'" data-chart-values="'+esc(JSON.stringify(entries))+'" data-chart-suffix="'+esc(suffix)+'" '+(hidden?'hidden':'')+'><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">LIVE RECORD INSIGHTS</span><h3>'+esc(title)+'</h3></div><div class="stc-admin-chart-tools"><span>'+entries.length+' categories</span><label class="stc-admin-chart-setting">View <select data-chart-type aria-label="Chart type for '+esc(title)+'"><option value="bar" '+(type==="bar"?"selected":"")+'>Bar</option><option value="donut" '+(type==="donut"?"selected":"")+'>Donut</option><option value="line" '+(type==="line"?"selected":"")+'>Trend line</option></select></label><label class="stc-admin-chart-hide"><input type="checkbox" data-chart-visible '+(!hidden?"checked":"")+'> Show</label></div></div><div class="stc-admin-chart-visual" aria-live="polite"></div></section>';
+  }
+  function renderAdminChart(card) {
+    const entries=JSON.parse(card.dataset.chartValues||"[]"), type=card.querySelector("[data-chart-type]")?.value||"bar", suffix=card.dataset.chartSuffix||"";
+    const host=card.querySelector(".stc-admin-chart-visual");
+    if(!host)return;
+    if(!entries.length){host.innerHTML='<p class="stc-dash-empty">No records available for this chart yet.</p>';return;}
+    const max=Math.max(1,...entries.map(x=>x[1]));
+    if(type==="donut"){
+      const total=entries.reduce((sum,x)=>sum+x[1],0)||1;let cursor=0;
+      const stops=entries.map((item,i)=>{const start=cursor;cursor+=item[1]/total*100;return adminChartPalette[i%adminChartPalette.length]+" "+start+"% "+cursor+"%"}).join(",");
+      host.innerHTML='<div class="stc-admin-donut-layout"><div class="stc-admin-donut" style="background:conic-gradient('+stops+')"><div><strong>'+total.toLocaleString()+ '</strong><span>Total</span></div></div><ul class="stc-admin-chart-legend">'+entries.map((x,i)=>'<li><i style="background:'+adminChartPalette[i%adminChartPalette.length]+'"></i><span>'+esc(x[0].replaceAll("_"," "))+'</span><strong>'+esc(x[1].toLocaleString()+suffix)+'</strong></li>').join("")+'</ul></div>';
+    } else if(type==="line"){
+      const width=620,height=230,pad=30,step=entries.length>1?(width-pad*2)/(entries.length-1):0;
+      const points=entries.map((x,i)=>[pad+i*step,height-pad-(x[1]/max)*(height-pad*2)]);
+      const path=points.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+      host.innerHTML='<div class="stc-admin-line-wrap"><svg viewBox="0 0 '+width+' '+height+'" role="img" aria-label="'+esc(card.querySelector("h3")?.textContent||"Trend")+' line chart"><line x1="'+pad+'" y1="'+(height-pad)+'" x2="'+(width-pad)+'" y2="'+(height-pad)+'" stroke="#e4edf3"/><path d="'+path+'" fill="none" stroke="#078eae" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'+points.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="5" fill="#078eae"><title>'+esc(entries[i][0]+": "+entries[i][1])+'</title></circle>').join("")+'</svg><div class="stc-admin-line-labels">'+entries.map(x=>'<span>'+esc(x[0])+'</span>').join("")+'</div></div>';
+    } else {
+      host.innerHTML='<div class="stc-admin-bars">'+entries.map((x,i)=>'<div class="stc-admin-bar-row"><div><span>'+esc(x[0].replaceAll("_"," "))+'</span><strong>'+esc(x[1].toLocaleString()+suffix)+'</strong></div><div class="stc-admin-bar-track"><i style="width:'+Math.max(0,x[1]/max*100)+'%;background:'+adminChartPalette[i%adminChartPalette.length]+'"></i></div></div>').join("")+'</div>';
+    }
+  }
+  function bindAdminDashboard() {
+    const rootEl=root(), prefsKey="stcAdminDashboardPrefs";
+    const read=()=>{try{return JSON.parse(localStorage.getItem(prefsKey)||"{}")}catch{return {}}};
+    const save=p=>{try{localStorage.setItem(prefsKey,JSON.stringify(p))}catch{}};
+    const grid=$("#stcAdminChartGrid",rootEl), toggle=$("#stcAdminCustomize",rootEl), controls=$("#stcAdminLayoutControls",rootEl);
+    const prefs=read();
+    if(grid){
+      grid.classList.toggle("is-three-columns",prefs.columns===3);
+      grid.classList.toggle("is-compact",prefs.compact===true);
+      grid.querySelectorAll(".stc-admin-chart").forEach(card=>{
+        const key=card.dataset.chartKey;
+        card.hidden=Array.isArray(prefs.hidden)&&prefs.hidden.includes(key);
+        const select=card.querySelector("[data-chart-type]");
+        if(select&&prefs.types?.[key])select.value=prefs.types[key];
+        renderAdminChart(card);
+      });
+      grid.addEventListener("change",event=>{
+        const card=event.target.closest(".stc-admin-chart");if(!card)return;
+        const p=read(),key=card.dataset.chartKey;
+        if(event.target.matches("[data-chart-type]")){p.types={...(p.types||{}),[key]:event.target.value};save(p);renderAdminChart(card);}
+        if(event.target.matches("[data-chart-visible]")){const hidden=new Set(p.hidden||[]);event.target.checked?hidden.delete(key):hidden.add(key);p.hidden=[...hidden];save(p);card.hidden=!event.target.checked;}
+      });
+    }
+    if(toggle&&controls){
+      toggle.addEventListener("click",()=>{const active=controls.hidden;controls.hidden=!active;toggle.setAttribute("aria-expanded",String(active));toggle.textContent=active?"Done customizing":"Customize dashboard";grid?.classList.toggle("is-customizing",active);});
+      controls.querySelector("[data-layout-columns]")?.addEventListener("change",event=>{const p=read();p.columns=Number(event.target.value);save(p);grid?.classList.toggle("is-three-columns",p.columns===3);});
+      controls.querySelector("[data-layout-compact]")?.addEventListener("change",event=>{const p=read();p.compact=event.target.checked;save(p);grid?.classList.toggle("is-compact",p.compact);});
+      controls.querySelector("[data-layout-reset]")?.addEventListener("click",()=>{try{localStorage.removeItem(prefsKey)}catch{};if(grid){grid.classList.remove("is-three-columns","is-compact");grid.querySelectorAll(".stc-admin-chart").forEach(card=>{card.hidden=false;const select=card.querySelector("[data-chart-type]");select.value=card.dataset.chartKey==="monthly"? "line":card.dataset.chartKey==="project"||card.dataset.chartKey==="payment"||card.dataset.chartKey==="enrolment"||card.dataset.chartKey==="enquiry"?"donut":"bar";const visible=card.querySelector("[data-chart-visible]");if(visible)visible.checked=true;renderAdminChart(card);});}const compact=controls.querySelector("[data-layout-compact]");if(compact)compact.checked=false;const columns=controls.querySelector("[data-layout-columns]");if(columns)columns.value="2";});
+    }
   }
 
 
@@ -338,7 +385,8 @@
         const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records"><span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
         const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the user ID of an existing STC account and choose the role they should receive.</p><label>Account user ID<input name="user_id" required placeholder="STC account user ID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
         showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,requestedResource)+'<main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+resourceTable+'</main>'+adminLayoutEnd(role)+'</div>');
-        $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
+        if(role==="super_admin") bindAdminDashboard();
+      $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         bindAdminResource(items,requestedResource);
         bindAdminCreate(requestedResource);
         const assignForm = $("#stcAssignStaffForm");
@@ -383,8 +431,8 @@
           const cards = Object.entries(metrics).map(([key,value])=>metric(metricLabels[key] || key.replaceAll("_"," "),value)).join("");
           const analytics = overview?.analytics || {};
           const revenueItems = Object.entries(analytics.revenue_by_currency || {}).map(([currency,amount])=>[currency,Number(amount)||0]);
-          const revenuePanel = adminChartPanel("Successful payments (latest 1,000)",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount])));
-          const chart = '<div class="stc-admin-chart-grid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status)+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status)+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status)+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status)+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity)+revenuePanel+'</div>';
+          const revenuePanel = adminChartPanel("Successful payments by currency (latest 1,000)",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount])),"revenue","bar");
+          const chart = '<div class="stc-admin-customize-row"><div><span class="stc-admin-eyebrow">YOUR WORKSPACE</span><strong>Dashboard display</strong></div><button type="button" id="stcAdminCustomize" aria-expanded="false">Customize dashboard</button></div><div class="stc-admin-layout-controls" id="stcAdminLayoutControls" hidden><label>Chart columns <select data-layout-columns><option value="2">Two columns</option><option value="3">Three columns</option></select></label><label><input type="checkbox" data-layout-compact> Compact chart cards</label><button type="button" data-layout-reset>Reset dashboard layout</button></div><div class="stc-admin-chart-grid" id="stcAdminChartGrid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status,"project","donut")+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status,"payment","donut")+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status,"enrolment","donut")+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status,"enquiry","donut")+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity,"monthly","line")+revenuePanel+'</div>';
           const groups = [
             ["People & access",["staff","profiles","enrollments","certificates","awards"]],
             ["Business operations",["enquiries","projects","quotes","invoices","payments","tickets"]],

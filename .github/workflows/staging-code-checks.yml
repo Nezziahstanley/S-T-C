@@ -1,0 +1,35 @@
+name: STC staging code checks
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-dependencies:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staging
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify installed dependencies
+        run: npm ls --depth=0
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.js
+          node --check auth.js
+          node --check database.js
+          node --check storage.js
+          node --check public/account.js
+          node --check public/admin.js
+          node --check public/app.js

@@ -123,7 +123,7 @@ async function requireStaff(req, res, next) {
 
 const permissionResources = ["profiles","students","clients","enrollments","certificates","awards","enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media"];
 const permissionCapabilities = {
-  profiles:{read:true},students:{read:true},clients:{read:true},
+  profiles:{create:true,read:true,update:true,delete:true},students:{read:true},clients:{read:true},
   enrollments:{read:true,update:true,delete:true},
   certificates:{read:true,update:true,delete:true},awards:{read:true,update:true,delete:true},
   enquiries:{read:true,update:true},
@@ -935,7 +935,7 @@ app.get("/api/admin/staff", requireStaff, async (req,res) => {
   res.json({items});
 });
 app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
-  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  if (!(await staffCan(req,"profiles","create"))) return res.status(403).json({ error: "Your staff role cannot search accounts for profile creation." });
   const term = clean(req.query?.q);
   if (term.length < 2) return res.json({ accounts: [] });
   if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
@@ -1056,8 +1056,27 @@ app.get("/api/admin/:resource", requireStaff, async (req, res) => {
 app.post("/api/admin/:resource", requireStaff, async (req, res) => {
   const resource = req.params.resource;
   const table = adminTables[resource];
-  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+  if (!table || ["enquiries", "payments", "media", "certificates", "awards"].includes(resource)) {
     return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "profiles") {
+    if (!(await staffCan(req,"profiles","create"))) return res.status(403).json({error:"Your staff role cannot create user profiles."});
+    const user_id=clean(req.body?.user_id);
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id)) return res.status(400).json({error:"Select a valid existing STC account."});
+    const account=await authDatabasePool.query('SELECT id FROM auth."user" WHERE id=$1 LIMIT 1',[user_id]);
+    if(!account.rowCount)return res.status(404).json({error:"The selected STC account does not exist."});
+    const allowed=["full_name","phone","company","account_type","institution","department","study_level","student_number"];
+    const payload=Object.fromEntries(allowed.filter(key=>req.body?.[key]!==undefined).map(key=>[key,req.body[key]===null?null:String(req.body[key]).trim()]));
+    if(payload.account_type!==undefined&&!["student","client"].includes(payload.account_type))return res.status(400).json({error:"Choose Student or Client as the account type."});
+    if(!payload.full_name)return res.status(400).json({error:"Full name is required."});
+    try {
+      const keys=["user_id",...Object.keys(payload)], values=[user_id,...Object.values(payload)];
+      const slots=values.map((_,i)=>"$"+(i+1));
+      const result=await authDatabasePool.query("INSERT INTO public.stc_profiles ("+keys.map(k=>'"'+k+'"').join(",")+") VALUES ("+slots.join(",")+") ON CONFLICT (user_id) DO NOTHING RETURNING *",values);
+      if(!result.rowCount)return res.status(409).json({error:"This account already has a profile. Edit the existing profile instead."});
+      await audit(req.user,"create","profiles",user_id,{fields:Object.keys(payload)});
+      return res.status(201).json({item:result.rows[0]});
+    } catch(error){return sendError(res,error,400);}
   }
   if (resource === "staff") {
     if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
@@ -1095,6 +1114,23 @@ app.post("/api/admin/:resource", requireStaff, async (req, res) => {
 app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   const resource = req.params.resource;
   const table = adminTables[resource];
+  if (resource === "profiles") {
+    if (!(await staffCan(req,"profiles","update"))) return res.status(403).json({error:"Your staff role cannot edit user profiles."});
+    const userId=clean(req.params.id);
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))return res.status(400).json({error:"Invalid profile account ID."});
+    const allowed=["full_name","phone","company","account_type","institution","department","study_level","student_number"];
+    const payload=Object.fromEntries(allowed.filter(key=>req.body?.[key]!==undefined).map(key=>[key,req.body[key]===null?null:String(req.body[key]).trim()]));
+    if(payload.account_type!==undefined&&!["student","client"].includes(payload.account_type))return res.status(400).json({error:"Choose Student or Client as the account type."});
+    if(payload.full_name!==undefined&&!payload.full_name)return res.status(400).json({error:"Full name cannot be empty."});
+    if(!Object.keys(payload).length)return res.status(400).json({error:"No profile fields were supplied."});
+    const sets=Object.keys(payload).map((key,i)=>'"'+key+'"=$'+(i+1)), values=[...Object.values(payload),userId];
+    try {
+      const result=await authDatabasePool.query("UPDATE public.stc_profiles SET "+sets.join(",")+", updated_at=NOW() WHERE user_id=$"+values.length+" RETURNING *",values);
+      if(!result.rowCount)return res.status(404).json({error:"Profile not found. Create a profile for this account first."});
+      await audit(req.user,"update","profiles",userId,{fields:Object.keys(payload)});
+      return res.json({item:result.rows[0]});
+    }catch(error){return sendError(res,error,400);}
+  }
   if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
   if (resource === "staff") {
     if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
@@ -1135,6 +1171,17 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
 });
 app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
   const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="profiles"){
+    if(!(await staffCan(req,"profiles","delete")))return res.status(403).json({error:"Your staff role cannot delete user profiles."});
+    const userId=clean(req.params.id);
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))return res.status(400).json({error:"Invalid profile account ID."});
+    try{
+      const result=await authDatabasePool.query("DELETE FROM public.stc_profiles WHERE user_id=$1 RETURNING user_id",[userId]);
+      if(!result.rowCount)return res.status(404).json({error:"Profile not found."});
+      await audit(req.user,"delete","profiles",userId,{scope:"profile_only",login_account_retained:true});
+      return res.json({message:"Profile deleted. The STC login account and authentication data remain intact."});
+    }catch(error){return sendError(res,error,400);}
+  }
   if(resource==="staff") return next();
   const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
   if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});

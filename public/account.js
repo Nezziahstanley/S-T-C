@@ -406,13 +406,50 @@
         const heading = resourceNames[requestedResource] || requestedResource;
         const columns = keys.slice(0,7).map(key=>'<th>'+esc(key.replaceAll("_"," "))+'</th>').join("");
         const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records">'+(requestedResource==="staff"?'<select id="stcStaffRoleFilter" aria-label="Filter by staff role"><option value="">All roles</option><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select><select id="stcStaffStatusFilter" aria-label="Filter by account status"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Suspended</option></select>':'')+'<span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
-        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<section class="stc-staff-summary">'+metric("Total staff",items.length)+metric("Active staff",items.filter(x=>x.is_active===true).length)+metric("Suspended staff",items.filter(x=>x.is_active===false).length)+metric("Assigned roles",new Set(items.map(x=>x.role)).size)+'</section><form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Only existing STC accounts can be assigned. Enter the account user ID and choose the appropriate role. The account will be activated when the role is assigned.</p><label>Account user ID<input name="user_id" required placeholder="Paste existing STC account UUID" autocomplete="off"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
+        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<section class="stc-staff-summary">'+metric("Total staff",items.length)+metric("Active staff",items.filter(x=>x.is_active===true).length)+metric("Suspended staff",items.filter(x=>x.is_active===false).length)+metric("Assigned roles",new Set(items.map(x=>x.role)).size)+'</section><form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Only existing STC accounts can be assigned. Enter the account user ID and choose the appropriate role. The account will be activated when the role is assigned.</p><label>Find STC account<input id="stcStaffAccountSearch" type="search" placeholder="Search by name or email address" autocomplete="off" required aria-describedby="stcStaffAccountHelp"><input name="user_id" id="stcStaffSelectedUserId" type="hidden" required><span id="stcStaffAccountHelp" class="stc-staff-account-help">Type at least 2 characters, then select the correct account.</span><div id="stcStaffAccountResults" class="stc-staff-account-results" role="listbox" aria-label="Matching STC accounts"></div><span id="stcStaffAccountSelected" class="stc-staff-account-selected" aria-live="polite"></span></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
         showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,requestedResource)+'<main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+resourceTable+'</main>'+adminLayoutEnd(role)+'</div>');
         if(role==="super_admin") bindAdminDashboard();
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         bindAdminResource(items,requestedResource);
         bindAdminCreate(requestedResource);
         const assignForm = $("#stcAssignStaffForm");
+        if (assignForm) {
+          const search = $("#stcStaffAccountSearch");
+          const selectedId = $("#stcStaffSelectedUserId");
+          const results = $("#stcStaffAccountResults");
+          const selectedLabel = $("#stcStaffAccountSelected");
+          let lookupTimer = null;
+          let lookupSequence = 0;
+          search?.addEventListener("input", () => {
+            clearTimeout(lookupTimer);
+            selectedId.value = "";
+            selectedLabel.textContent = "";
+            results.innerHTML = "";
+            const term = search.value.trim();
+            if (term.length < 2) return;
+            results.innerHTML = '<p class="stc-staff-account-empty">Searching accounts…</p>';
+            lookupTimer = setTimeout(async () => {
+              const sequence = ++lookupSequence;
+              try {
+                const data = await request("/api/admin/staff/accounts?q=" + encodeURIComponent(term));
+                if (sequence !== lookupSequence || search.value.trim() !== term) return;
+                results.innerHTML = data.accounts.length ? data.accounts.map(item =>
+                  '<button type="button" class="stc-staff-account-option" data-user-id="'+esc(item.user_id)+'" data-account-name="'+esc(item.name)+'" data-account-email="'+esc(item.email)+'"><strong>'+esc(item.name)+'</strong><span>'+esc(item.email)+'</span><small>'+esc(item.account_type)+(item.department?' · '+esc(item.department):'')+'</small></button>'
+                ).join("") : '<p class="stc-staff-account-empty">No matching STC account found.</p>';
+              } catch (error) {
+                if (sequence === lookupSequence) results.innerHTML = '<p class="stc-staff-account-empty is-error">'+esc(error.message)+'</p>';
+              }
+            }, 250);
+          });
+          results?.addEventListener("click", event => {
+            const option = event.target.closest("[data-user-id]");
+            if (!option) return;
+            selectedId.value = option.dataset.userId;
+            search.value = option.dataset.accountName + " — " + option.dataset.accountEmail;
+            selectedLabel.textContent = "Selected account: " + option.dataset.accountName + " (" + option.dataset.accountEmail + ")";
+            results.innerHTML = "";
+          });
+        }
         assignForm?.addEventListener("submit", async event => {
           event.preventDefault();
           const submit = $("button[type=submit]", assignForm);

@@ -345,3 +345,8 @@
 .stc-staff-permissions-note{margin:12px 0 0;color:var(--muted,#687386);font-size:.78rem;line-height:1.5}
 .stc-staff-activity-content code{font-size:.7rem;overflow-wrap:anywhere}
 @media(max-width:680px){.stc-staff-permissions,.stc-staff-activity{padding:14px}}
+
+.stc-staff-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stc-staff-remove-button{border:1px solid #e5a4a4;background:transparent;color:#b42318;border-radius:8px;padding:7px 10px;font:inherit;font-size:.78rem;cursor:pointer}
+.stc-staff-remove-button:hover{background:#fff1f0}
+.stc-staff-remove-button:disabled{opacity:.55;cursor:wait}

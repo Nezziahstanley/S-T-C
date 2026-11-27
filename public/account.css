@@ -298,3 +298,22 @@
 .stc-admin-layout-controls{margin:0 0 16px}
 @media(max-width:900px){.stc-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:1fr}.stc-admin-metrics{gap:9px}.stc-admin-welcome{align-items:flex-start;gap:12px}}
+
+
+/* Super Admin attention summary and analytics period control */
+.stc-admin-attention{margin:0 0 24px;padding:18px 20px;border:1px solid #e1eaf0;border-radius:15px;background:#fff;box-shadow:0 5px 20px rgba(19,53,79,.035)}
+.stc-admin-attention-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}
+.stc-admin-attention-heading h3{margin:3px 0 0;color:#18344f;font-size:1rem;letter-spacing:-.02em}
+.stc-admin-attention-total{display:grid;place-items:center;min-width:42px;height:42px;padding:0 10px;border-radius:12px;background:#fff4e7;color:#a65b12;font-size:1.15rem;font-weight:800}
+.stc-admin-attention-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+.stc-admin-attention-list a{display:grid;grid-template-columns:minmax(0,1fr) auto 12px;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #edf1f4;color:#526a80;text-decoration:none;font-size:.76rem;transition:color .18s}
+.stc-admin-attention-list a:hover{color:#087fa9}
+.stc-admin-attention-list strong{color:#17324e;font-size:.82rem}
+.stc-admin-attention-list a>span:last-child{color:#94a4b2;font-size:1rem}
+.stc-admin-attention-empty{margin:0;color:#7b8c9b;font-size:.76rem}
+.stc-admin-dashboard-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.stc-admin-period-filter{display:flex;align-items:center;gap:7px;color:#61758a;font-size:.7rem;font-weight:700}
+.stc-admin-period-filter select{padding:8px 10px;border:1px solid #d9e4ec;border-radius:8px;background:#fff;color:#27445e;font:inherit}
+.stc-admin-period-filter select:focus-visible{outline:3px solid rgba(8,127,169,.3);outline-offset:2px}
+@media(max-width:680px){.stc-admin-attention{padding:15px}.stc-admin-attention-list{grid-template-columns:1fr}.stc-admin-dashboard-tools{width:100%;justify-content:flex-start}.stc-admin-customize-row{gap:12px}}
+@media(prefers-reduced-motion:reduce){.stc-admin-attention-list a{transition:none}}

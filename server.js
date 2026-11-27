@@ -870,7 +870,7 @@ app.get("/api/admin/profiles", requireStaff, async (req,res) => {
         u.email, COALESCE(p.account_type,'unclassified') AS account_type,
         p.phone, p.company, p.institution, p.department, p.study_level, p.student_number,
         u."emailVerified" AS email_verified, u."createdAt" AS created_at,
-        sr.role AS staff_role, sr.is_active AS staff_active,
+        sr.role AS staff_role, sr.is_active AS staff_active, (p.user_id IS NOT NULL) AS has_profile,
         (NULLIF(BTRIM(p.full_name),'') IS NOT NULL AND NULLIF(BTRIM(p.phone),'') IS NOT NULL AND p.account_type IS NOT NULL) AS profile_complete
       FROM auth."user" u
       LEFT JOIN public.stc_profiles p ON p.user_id = u.id

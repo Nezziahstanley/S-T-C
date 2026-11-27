@@ -505,7 +505,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     "training enrolment count","issued certificate count","issued award count","profile count","client count",
     "active staff count","service count","published post count","portfolio count","media count",
     "recent enquiries","recent projects","recent support tickets","project status data","payment summary data",
-    "enrolment status data","enquiry status data","recent audit activity","administrator notifications","support ticket status data"
+    "enrolment status data","enquiry status data","recent audit activity","administrator notifications"
   ];
   const results = await Promise.all([
     db.from("stc_enquiries").select("id", { count:"exact", head:true }),
@@ -532,35 +532,13 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     db.from("stc_training_enrollments").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_enquiries").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_audit_logs").select("actor,action,entity,entity_id,created_at,details").order("created_at", { ascending:false }).limit(12),
-    db.from("stc_notifications").select("*").eq("user_id",req.user.id).order("created_at", { ascending:false }).limit(8),
-    db.from("stc_tickets").select("status,created_at").order("created_at", { ascending:false }).limit(1000)
+    db.from("stc_notifications").select("*").eq("user_id",req.user.id).order("created_at", { ascending:false }).limit(8)
   ]);
   const failedIndex = results.findIndex(item => item.error);
   if (failedIndex !== -1) {
     console.error("STC_ADMIN_DASHBOARD_QUERY_FAILED", JSON.stringify({ query:labels[failedIndex], error:results[failedIndex].error }));
     return res.status(503).json({ error:"The dashboard could not load its "+labels[failedIndex]+". Your sign-in is still active; please try again shortly." });
   }
-  const fetchAllRows = async buildQuery => {
-    const rows = [];
-    for (let offset = 0; ; offset += 1000) {
-      const { data, error } = await buildQuery().range(offset, offset + 999);
-      if (error) return { data: null, error };
-      rows.push(...(data || []));
-      if (!data || data.length < 1000) break;
-    }
-    return { data: rows, error: null };
-  };
-  const [allInvoicesResult, allPaymentsResult] = await Promise.all([
-    fetchAllRows(() => db.from("stc_invoices").select("id,amount,currency,status,created_at").order("created_at", { ascending:false })),
-    fetchAllRows(() => db.from("stc_payments").select("invoice_id,amount,currency,status,created_at").order("created_at", { ascending:false }))
-  ]);
-  if (allInvoicesResult.error || allPaymentsResult.error) {
-    const failure = allInvoicesResult.error || allPaymentsResult.error;
-    console.error("STC_ADMIN_FINANCE_QUERY_FAILED", failure);
-    return res.status(503).json({ error:"Financial summaries are temporarily unavailable. Please refresh the dashboard shortly." });
-  }
-  const allInvoices = allInvoicesResult.data || [];
-  const allPayments = allPaymentsResult.data || [];
   const count = index => results[index].count || 0;
   const groupByStatus = rows => (rows || []).reduce((groups,row) => {
     const key = String(row.status || "unspecified").toLowerCase();
@@ -570,7 +548,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
   const monthlyActivity = {};
   const monthCutoff = new Date();
   monthCutoff.setMonth(monthCutoff.getMonth() - 5);
-  for (const rows of [results[19].data,results[20].data,results[21].data,results[22].data,results[25].data]) {
+  for (const rows of [results[19].data,results[20].data,results[21].data,results[22].data]) {
     for (const row of rows || []) {
       const date = new Date(row.created_at);
       if (!Number.isFinite(date.getTime()) || date < monthCutoff) continue;
@@ -579,26 +557,11 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     }
   }
   const revenueByCurrency = {};
-  const paidByInvoice = {};
-  for (const payment of allPayments) {
+  for (const payment of results[20].data || []) {
     if (String(payment.status).toLowerCase() !== "success") continue;
     const currency = String(payment.currency || "Unspecified").toUpperCase();
     const amount = Number(payment.amount);
     if (Number.isFinite(amount)) revenueByCurrency[currency] = (revenueByCurrency[currency] || 0) + amount;
-    if (payment.invoice_id && Number.isFinite(amount)) paidByInvoice[payment.invoice_id] = (paidByInvoice[payment.invoice_id] || 0) + amount;
-  }
-  const outstandingByCurrency = {};
-  let outstandingInvoiceCount = 0;
-  for (const invoice of allInvoices) {
-    const status = String(invoice.status || "").toLowerCase();
-    if (["paid","cancelled","canceled","void","draft","deleted"].includes(status)) continue;
-    const amount = Number(invoice.amount);
-    if (!Number.isFinite(amount) || amount <= 0) continue;
-    const balance = Math.max(0, amount - (paidByInvoice[invoice.id] || 0));
-    if (balance <= 0.005) continue;
-    const currency = String(invoice.currency || "NGN").toUpperCase();
-    outstandingByCurrency[currency] = (outstandingByCurrency[currency] || 0) + balance;
-    outstandingInvoiceCount += 1;
   }
   res.json({
     role:req.staffRole,
@@ -614,13 +577,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
       payment_status:groupByStatus(results[20].data),
       enrolment_status:groupByStatus(results[21].data),
       enquiry_status:groupByStatus(results[22].data),
-      ticket_status:groupByStatus(results[25].data),
-      invoice_status:groupByStatus(allInvoices),
-      revenue_by_currency:revenueByCurrency,
-      outstanding_by_currency:outstandingByCurrency,
-      outstanding_invoice_count:outstandingInvoiceCount,
-      invoice_records_count:allInvoices.length,
-      monthly_activity:monthlyActivity
+      revenue_by_currency:revenueByCurrency,monthly_activity:monthlyActivity
     },
     activity:results[23].data||[],notifications:results[24].data||[]
   });

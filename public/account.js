@@ -448,7 +448,7 @@
           const attentionSignals = [
             {label:"Enquiries awaiting response",resource:"enquiries",values:analytics.enquiry_status,match:/new|pending|unanswered|open/i},
             {label:"Projects needing attention",resource:"projects",values:analytics.project_status,match:/blocked|delayed|on_hold|at_risk/i},
-            {label:"Invoices awaiting payment",resource:"invoices",values:analytics.payment_status,match:/pending|overdue|unpaid/i},
+            {label:"Invoices awaiting payment",resource:"invoices",values:analytics.invoice_status,match:/pending|overdue|unpaid|sent|partially_paid/i},
             {label:"Open support tickets",resource:"tickets",values:analytics.ticket_status,match:/open|pending|unresolved/i}
           ];
           const attentionRows = attentionSignals.map(signal=>{

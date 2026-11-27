@@ -324,3 +324,12 @@
 .stc-staff-summary+.stc-staff-assignment{margin-top:0}
 @media(max-width:900px){.stc-staff-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.stc-staff-summary{gap:9px}.stc-admin-resource-tools select{max-width:none;width:100%}}
+
+.stc-staff-account-help{display:block;margin-top:7px;color:var(--muted,#687386);font-size:.82rem;line-height:1.5}
+.stc-staff-account-results{display:grid;gap:7px;margin-top:8px;max-height:260px;overflow:auto}
+.stc-staff-account-option{display:grid;gap:3px;width:100%;padding:11px 13px;text-align:left;border:1px solid var(--line,#dce2ea);border-radius:10px;background:var(--surface,#fff);color:inherit;cursor:pointer}
+.stc-staff-account-option:hover,.stc-staff-account-option:focus-visible{border-color:var(--accent,#5267d8);outline:none}
+.stc-staff-account-option strong{font-size:.92rem}
+.stc-staff-account-option span,.stc-staff-account-option small{color:var(--muted,#687386);font-size:.8rem}
+.stc-staff-account-empty{margin:0;padding:10px 12px;color:var(--muted,#687386);font-size:.85rem}
+.stc-staff-account-selected{display:block;margin-top:7px;color:var(--success,#18845b);font-size:.84rem}

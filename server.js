@@ -407,7 +407,7 @@ app.patch("/api/admin/me/profile", requireStaff, async (req,res) => {
   if(!name||name.length>120||phone.length>40||company.length>160) return res.status(400).json({error:"Enter a valid name, phone number and organisation."});
   try {
     await authDatabasePool.query('UPDATE auth."user" SET name=$1,"updatedAt"=NOW() WHERE id=$2',[name,req.user.id]);
-    await authDatabasePool.query("UPDATE public.stc_profiles SET full_name=$1,phone=$2,company=$3,updated_at=NOW() WHERE user_id=$4",[name,phone||null,company||null,req.user.id]);
+    await authDatabasePool.query("INSERT INTO public.stc_profiles (user_id,full_name,phone,company) VALUES ($1,$2,$3,$4) ON CONFLICT (user_id) DO UPDATE SET full_name=EXCLUDED.full_name,phone=EXCLUDED.phone,company=EXCLUDED.company,updated_at=NOW()",[req.user.id,name,phone||null,company||null]);
     await audit(req.user,"update_own_admin_profile","profiles",req.user.id,{fields:["name","phone","company"]});
     res.json({message:"Administrator profile updated.",name});
   } catch(error){return sendError(res,error,500);}

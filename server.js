@@ -846,6 +846,2724 @@ const adminTables = {
   media: "stc_media", profiles: "stc_profiles", staff: "stc_staff_roles",
   certificates: "stc_certificates", awards: "stc_awards"
 };
+app.get("/api/admin/profiles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the full user directory."});
+  const q = clean(req.query?.q).slice(0,120);
+  const type = ["student","client","unclassified"].includes(clean(req.query?.type)) ? clean(req.query.type) : "";
+  const completion = ["complete","incomplete"].includes(clean(req.query?.completion)) ? clean(req.query.completion) : "";
+  try {
+    const values = [];
+    const where = [];
+    if (q) {
+      values.push("%"+q+"%");
+      where.push('(u.email ILIKE , requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
+app.get("/api/admin/:resource", requireStaff, async (req, res) => {
+  const table = adminTables[req.params.resource];
+  if (!table) return res.status(404).json({ error: "Unknown admin resource." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  const { data, error } = await db.from(table).select("*").limit(100);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+app.post("/api/admin/:resource", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+    return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    const user_id = clean(req.body?.user_id);
+    const role = clean(req.body?.role);
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
+    const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
+    if (error) return sendError(res, error, 400);
+    await audit(req.user, "assign_staff_role", "staff", user_id, { role });
+    return res.status(201).json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  const fields = {
+    projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["client_user_id", "project_id", "quote_id", "reference", "description", "amount", "currency", "status", "due_date"],
+    tickets: ["client_user_id", "subject", "message", "status", "priority"],
+    services: ["slug", "name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "slug", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "slug", "category", "summary", "details", "url", "featured"]
+  }[resource];
+  const payload = Object.fromEntries(fields.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["projects", "quotes", "invoices", "tickets"].includes(resource) && !payload.client_user_id) {
+    return res.status(400).json({ error: "A client user ID is required." });
+  }
+  const { data, error } = await db.from(table).insert(payload).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "create", resource, data.id, { fields: Object.keys(payload) });
+  res.status(201).json({ item: data });
+});
+app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
+    const payload = {};
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
+    if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
+    if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
+    const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
+    if (error) return sendError(res, error, 400);
+    if (!data) return res.status(404).json({ error: "Staff record not found." });
+    await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
+    return res.json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  const editable = {
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["description", "amount", "currency", "status", "due_date"],
+    tickets: ["status", "priority"],
+    services: ["name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "category", "summary", "details", "url", "featured"],
+    media: ["title", "description", "category", "is_featured", "is_published"]
+  }[resource];
+  if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
+  const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
+  if (resource === "invoices" && payload.status === "paid") {
+    return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
+  }
+  if (!Object.keys(payload).length) return res.status(400).json({ error: "No editable fields supplied." });
+  const { data, error } = await db.from(table).update(payload).eq("id", Number(req.params.id)).select("*").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Record not found." });
+  await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
+  res.json({ item: data });
+});
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
+app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  const title = clean(req.body?.title);
+  const category = clean(req.body?.category) || "STC";
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!title || !filename || !base64 || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return res.status(400).json({ error: "Upload a JPG, PNG, WEBP or GIF image with a title." });
+  }
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Image must be smaller than 8 MB." });
+  const extension = contentType.split("/")[1].replace("jpeg", "jpg");
+  const key = "gallery/" + crypto.randomUUID() + "." + extension;
+  const { error: uploadError } = await db.storage.from("stc-media").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data, error } = await db.from("stc_media").insert({
+    title, description: clean(req.body?.description), category, media_type: "image",
+    storage_key: key, content_type: contentType,
+    is_featured: Boolean(req.body?.is_featured), is_published: true
+  }).select("*").single();
+  if (error) return sendError(res, error, 500);
+  await audit(req.user, "upload", "media", data.id, { filename });
+  res.status(201).json({
+    item: { ...data, url: db.storage.from("stc-media").getPublicUrl(key).data.publicUrl }
+  });
+});
+app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  const { data, error } = await db.from("stc_messages").select("*")
+    .eq("ticket_id", Number(req.params.id)).order("created_at");
+  if (error) return sendError(res, error, 500);
+  res.json({ messages: data || [] });
+});
+app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  const message = clean(req.body?.message);
+  if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
+  const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  const { error } = await db.from("stc_messages").insert({
+    ticket_id: ticket.id, sender_user_id: req.user.id, message
+  });
+  if (error) return sendError(res, error, 500);
+  await db.from("stc_notifications").insert({
+    user_id: ticket.client_user_id, title: "Support replied",
+    body: "There is a new reply to your support ticket."
+  });
+  res.status(201).json({ message: "Reply sent." });
+});
+
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
+
+/* STC student accounts, training enrolments and bank-transfer verification */
+app.patch("/api/account/profile", requireUser, async (req, res) => {
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const full_name = clean(req.body?.full_name);
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
+  const study_level = clean(req.body?.study_level);
+  if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Enter valid account and profile details." });
+  }
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
+  const { data: existing } = await db.from("stc_profiles").select("student_number")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (account_type === "student" && !existing?.student_number) {
+    payload.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { error } = await db.from("stc_profiles").upsert(payload, { onConflict: "user_id" });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_account_profile", "profiles", req.user.id, { account_type });
+  res.json({ message: "Account profile saved.", account_type, student_number: payload.student_number || existing?.student_number || null });
+});
+
+app.post("/api/student/enrollments", requireUser, async (req, res) => {
+  const { data: profile } = await db.from("stc_profiles").select("account_type")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const course_name = clean(req.body?.course_name);
+  const mode = ["Online", "Physical", "Hybrid"].includes(req.body?.mode) ? req.body.mode : "Online";
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const placement_duration = clean(req.body?.placement_duration);
+  const start_date = clean(req.body?.start_date);
+  if (!course_name || course_name.length > 160 || institution.length > 180 ||
+      department.length > 160 || study_level.length > 80 || placement_duration.length > 80) {
+    return res.status(400).json({ error: "Check the programme and student details." });
+  }
+  const { data, error } = await db.from("stc_training_enrollments").insert({
+    user_id: req.user.id, course_name, mode, institution, department, study_level,
+    placement_duration, start_date: /^\\d{4}-\\d{2}-\\d{2}$/.test(start_date) ? start_date : null
+  }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
+  res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
+});
+
+app.get("/api/public/payment-settings", async (_req, res) => {
+  const { data, error } = await db.from("stc_payment_settings")
+    .select("bank_name,account_name,account_number,transfer_instructions").eq("id", 1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || null });
+});
+
+app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res) => {
+  const invoiceId = Number(req.params.id);
+  const transaction_reference = clean(req.body?.transaction_reference);
+  const base64 = clean(req.body?.receipt_base64);
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  if (!Number.isSafeInteger(invoiceId) || invoiceId < 1 || !transaction_reference ||
+      transaction_reference.length > 120 || !base64 ||
+      !["image/jpeg","image/png","image/webp","application/pdf"].includes(contentType)) {
+    return res.status(400).json({ error: "Provide the transfer reference and a JPG, PNG, WEBP or PDF receipt." });
+  }
+  const { data: invoice } = await db.from("stc_invoices").select("*")
+    .eq("id", invoiceId).eq("client_user_id", req.user.id).maybeSingle();
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (invoice.status === "paid") return res.status(409).json({ error: "This invoice is already paid." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
+  const amount = Number(req.body?.amount);
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
+    return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
+  }
+  const key = "receipts/" + req.user.id + "/" + crypto.randomUUID() + (contentType === "application/pdf" ? ".pdf" : contentType === "image/png" ? ".png" : contentType === "image/webp" ? ".webp" : ".jpg");
+  const { error: uploadError } = await db.storage.from("stc-payment-receipts").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const reference = "STC-BT-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+  const { data, error } = await db.from("stc_payments").insert({
+    invoice_id: invoice.id, client_user_id: req.user.id, reference, amount,
+    currency: invoice.currency || "NGN", method: "bank_transfer",
+    status: "pending_verification", receipt_key: key,
+    transaction_reference, receipt_submitted_at: new Date().toISOString(), notes: filename.slice(0,160)
+  }).select("id,reference,amount,currency,status,created_at").single();
+  if (error) {
+    await db.storage.from("stc-payment-receipts").remove([key]);
+    return sendError(res, error, 400);
+  }
+  await db.from("stc_notifications").insert({
+    user_id: req.user.id, title: "Transfer receipt received",
+    body: "Your transfer receipt " + reference + " is awaiting STC finance verification."
+  });
+  res.status(201).json({ payment: data, message: "Receipt submitted. Your payment will be confirmed after STC checks the bank account." });
+});
+
+app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || {} });
+});
+app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const bank_name = clean(req.body?.bank_name);
+  const account_name = clean(req.body?.account_name);
+  const account_number = clean(req.body?.account_number);
+  const transfer_instructions = clean(req.body?.transfer_instructions);
+  if (bank_name.length > 100 || account_name.length > 120 || (account_number && !/^\\d{10}$/.test(account_number)) || transfer_instructions.length > 800) {
+    return res.status(400).json({ error: "Check the bank details. Nigerian account numbers must contain 10 digits." });
+  }
+  const { data, error } = await db.from("stc_payment_settings").upsert({
+    id:1, bank_name:bank_name || null, account_name:account_name || null,
+    account_number:account_number || null, transfer_instructions:transfer_instructions || null,
+    updated_by:req.user.id, updated_at:new Date().toISOString()
+  }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_bank_transfer_settings", "payment_settings", 1, { bank_name, account_name, account_number: account_number ? "updated" : "empty" });
+  res.json({ settings:data, message:"Bank transfer settings saved." });
+});
+app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data: payment } = await db.from("stc_payments").select("receipt_key")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
+  const { data, error } = await db.storage.from("stc-payment-receipts").createSignedUrl(payment.receipt_key, 300);
+  if (error) return sendError(res, error, 500);
+  res.json({ url:data.signedUrl, expires_in:300 });
+});
+app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const id = Number(req.params.id);
+  const decision = clean(req.body?.decision);
+  const rejection_reason = clean(req.body?.rejection_reason);
+  if (!Number.isSafeInteger(id) || id < 1 || !["approve","reject"].includes(decision)) return res.status(400).json({ error: "Invalid verification action." });
+  const { data: payment } = await db.from("stc_payments").select("*").eq("id",id).maybeSingle();
+  if (!payment || payment.method !== "bank_transfer") return res.status(404).json({ error: "Bank transfer payment not found." });
+  if (payment.status !== "pending_verification") return res.status(409).json({ error: "This payment has already been reviewed." });
+  if (decision === "reject" && !rejection_reason) return res.status(400).json({ error: "Give a reason for rejecting this receipt." });
+  const nextStatus = decision === "approve" ? "success" : "rejected";
+  const { data, error } = await db.from("stc_payments").update({
+    status:nextStatus, verified_by:req.user.id,
+    verified_at:new Date().toISOString(),
+    rejection_reason:decision === "reject" ? rejection_reason.slice(0,500) : null
+  }).eq("id",id).eq("status","pending_verification").select("*").maybeSingle();
+  if (error) return sendError(res,error,400);
+  if (!data) return res.status(409).json({ error:"Payment was already reviewed." });
+  if (decision === "approve" && payment.invoice_id) {
+    const { data: successful } = await db.from("stc_payments").select("amount")
+      .eq("invoice_id",payment.invoice_id).eq("status","success");
+    const paid = (successful || []).reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const { data: invoice } = await db.from("stc_invoices").select("amount,client_user_id")
+      .eq("id",payment.invoice_id).maybeSingle();
+    if (invoice) await db.from("stc_invoices").update({
+      status:paid + 0.005 >= Number(invoice.amount) ? "paid" : "partially_paid"
+    }).eq("id",payment.invoice_id);
+  }
+  await db.from("stc_notifications").insert({
+    user_id:payment.client_user_id,
+    title:decision === "approve" ? "Bank transfer verified" : "Receipt needs attention",
+    body:decision === "approve" ? "Your bank transfer " + payment.reference + " has been confirmed." : "Your receipt was not verified: " + rejection_reason
+  });
+  await audit(req.user, decision === "approve" ? "verify_bank_transfer" : "reject_bank_transfer", "payments", id, { reference:payment.reference });
+  res.json({ payment:data, message:decision === "approve" ? "Payment verified." : "Receipt rejected." });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});
++values.length+' OR u.name ILIKE , requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
+app.get("/api/admin/:resource", requireStaff, async (req, res) => {
+  const table = adminTables[req.params.resource];
+  if (!table) return res.status(404).json({ error: "Unknown admin resource." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  const { data, error } = await db.from(table).select("*").limit(100);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+app.post("/api/admin/:resource", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+    return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    const user_id = clean(req.body?.user_id);
+    const role = clean(req.body?.role);
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
+    const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
+    if (error) return sendError(res, error, 400);
+    await audit(req.user, "assign_staff_role", "staff", user_id, { role });
+    return res.status(201).json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  const fields = {
+    projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["client_user_id", "project_id", "quote_id", "reference", "description", "amount", "currency", "status", "due_date"],
+    tickets: ["client_user_id", "subject", "message", "status", "priority"],
+    services: ["slug", "name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "slug", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "slug", "category", "summary", "details", "url", "featured"]
+  }[resource];
+  const payload = Object.fromEntries(fields.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["projects", "quotes", "invoices", "tickets"].includes(resource) && !payload.client_user_id) {
+    return res.status(400).json({ error: "A client user ID is required." });
+  }
+  const { data, error } = await db.from(table).insert(payload).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "create", resource, data.id, { fields: Object.keys(payload) });
+  res.status(201).json({ item: data });
+});
+app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
+    const payload = {};
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
+    if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
+    if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
+    const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
+    if (error) return sendError(res, error, 400);
+    if (!data) return res.status(404).json({ error: "Staff record not found." });
+    await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
+    return res.json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  const editable = {
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["description", "amount", "currency", "status", "due_date"],
+    tickets: ["status", "priority"],
+    services: ["name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "category", "summary", "details", "url", "featured"],
+    media: ["title", "description", "category", "is_featured", "is_published"]
+  }[resource];
+  if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
+  const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
+  if (resource === "invoices" && payload.status === "paid") {
+    return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
+  }
+  if (!Object.keys(payload).length) return res.status(400).json({ error: "No editable fields supplied." });
+  const { data, error } = await db.from(table).update(payload).eq("id", Number(req.params.id)).select("*").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Record not found." });
+  await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
+  res.json({ item: data });
+});
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
+app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  const title = clean(req.body?.title);
+  const category = clean(req.body?.category) || "STC";
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!title || !filename || !base64 || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return res.status(400).json({ error: "Upload a JPG, PNG, WEBP or GIF image with a title." });
+  }
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Image must be smaller than 8 MB." });
+  const extension = contentType.split("/")[1].replace("jpeg", "jpg");
+  const key = "gallery/" + crypto.randomUUID() + "." + extension;
+  const { error: uploadError } = await db.storage.from("stc-media").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data, error } = await db.from("stc_media").insert({
+    title, description: clean(req.body?.description), category, media_type: "image",
+    storage_key: key, content_type: contentType,
+    is_featured: Boolean(req.body?.is_featured), is_published: true
+  }).select("*").single();
+  if (error) return sendError(res, error, 500);
+  await audit(req.user, "upload", "media", data.id, { filename });
+  res.status(201).json({
+    item: { ...data, url: db.storage.from("stc-media").getPublicUrl(key).data.publicUrl }
+  });
+});
+app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  const { data, error } = await db.from("stc_messages").select("*")
+    .eq("ticket_id", Number(req.params.id)).order("created_at");
+  if (error) return sendError(res, error, 500);
+  res.json({ messages: data || [] });
+});
+app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  const message = clean(req.body?.message);
+  if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
+  const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  const { error } = await db.from("stc_messages").insert({
+    ticket_id: ticket.id, sender_user_id: req.user.id, message
+  });
+  if (error) return sendError(res, error, 500);
+  await db.from("stc_notifications").insert({
+    user_id: ticket.client_user_id, title: "Support replied",
+    body: "There is a new reply to your support ticket."
+  });
+  res.status(201).json({ message: "Reply sent." });
+});
+
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
+
+/* STC student accounts, training enrolments and bank-transfer verification */
+app.patch("/api/account/profile", requireUser, async (req, res) => {
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const full_name = clean(req.body?.full_name);
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
+  const study_level = clean(req.body?.study_level);
+  if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Enter valid account and profile details." });
+  }
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
+  const { data: existing } = await db.from("stc_profiles").select("student_number")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (account_type === "student" && !existing?.student_number) {
+    payload.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { error } = await db.from("stc_profiles").upsert(payload, { onConflict: "user_id" });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_account_profile", "profiles", req.user.id, { account_type });
+  res.json({ message: "Account profile saved.", account_type, student_number: payload.student_number || existing?.student_number || null });
+});
+
+app.post("/api/student/enrollments", requireUser, async (req, res) => {
+  const { data: profile } = await db.from("stc_profiles").select("account_type")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const course_name = clean(req.body?.course_name);
+  const mode = ["Online", "Physical", "Hybrid"].includes(req.body?.mode) ? req.body.mode : "Online";
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const placement_duration = clean(req.body?.placement_duration);
+  const start_date = clean(req.body?.start_date);
+  if (!course_name || course_name.length > 160 || institution.length > 180 ||
+      department.length > 160 || study_level.length > 80 || placement_duration.length > 80) {
+    return res.status(400).json({ error: "Check the programme and student details." });
+  }
+  const { data, error } = await db.from("stc_training_enrollments").insert({
+    user_id: req.user.id, course_name, mode, institution, department, study_level,
+    placement_duration, start_date: /^\\d{4}-\\d{2}-\\d{2}$/.test(start_date) ? start_date : null
+  }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
+  res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
+});
+
+app.get("/api/public/payment-settings", async (_req, res) => {
+  const { data, error } = await db.from("stc_payment_settings")
+    .select("bank_name,account_name,account_number,transfer_instructions").eq("id", 1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || null });
+});
+
+app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res) => {
+  const invoiceId = Number(req.params.id);
+  const transaction_reference = clean(req.body?.transaction_reference);
+  const base64 = clean(req.body?.receipt_base64);
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  if (!Number.isSafeInteger(invoiceId) || invoiceId < 1 || !transaction_reference ||
+      transaction_reference.length > 120 || !base64 ||
+      !["image/jpeg","image/png","image/webp","application/pdf"].includes(contentType)) {
+    return res.status(400).json({ error: "Provide the transfer reference and a JPG, PNG, WEBP or PDF receipt." });
+  }
+  const { data: invoice } = await db.from("stc_invoices").select("*")
+    .eq("id", invoiceId).eq("client_user_id", req.user.id).maybeSingle();
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (invoice.status === "paid") return res.status(409).json({ error: "This invoice is already paid." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
+  const amount = Number(req.body?.amount);
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
+    return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
+  }
+  const key = "receipts/" + req.user.id + "/" + crypto.randomUUID() + (contentType === "application/pdf" ? ".pdf" : contentType === "image/png" ? ".png" : contentType === "image/webp" ? ".webp" : ".jpg");
+  const { error: uploadError } = await db.storage.from("stc-payment-receipts").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const reference = "STC-BT-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+  const { data, error } = await db.from("stc_payments").insert({
+    invoice_id: invoice.id, client_user_id: req.user.id, reference, amount,
+    currency: invoice.currency || "NGN", method: "bank_transfer",
+    status: "pending_verification", receipt_key: key,
+    transaction_reference, receipt_submitted_at: new Date().toISOString(), notes: filename.slice(0,160)
+  }).select("id,reference,amount,currency,status,created_at").single();
+  if (error) {
+    await db.storage.from("stc-payment-receipts").remove([key]);
+    return sendError(res, error, 400);
+  }
+  await db.from("stc_notifications").insert({
+    user_id: req.user.id, title: "Transfer receipt received",
+    body: "Your transfer receipt " + reference + " is awaiting STC finance verification."
+  });
+  res.status(201).json({ payment: data, message: "Receipt submitted. Your payment will be confirmed after STC checks the bank account." });
+});
+
+app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || {} });
+});
+app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const bank_name = clean(req.body?.bank_name);
+  const account_name = clean(req.body?.account_name);
+  const account_number = clean(req.body?.account_number);
+  const transfer_instructions = clean(req.body?.transfer_instructions);
+  if (bank_name.length > 100 || account_name.length > 120 || (account_number && !/^\\d{10}$/.test(account_number)) || transfer_instructions.length > 800) {
+    return res.status(400).json({ error: "Check the bank details. Nigerian account numbers must contain 10 digits." });
+  }
+  const { data, error } = await db.from("stc_payment_settings").upsert({
+    id:1, bank_name:bank_name || null, account_name:account_name || null,
+    account_number:account_number || null, transfer_instructions:transfer_instructions || null,
+    updated_by:req.user.id, updated_at:new Date().toISOString()
+  }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_bank_transfer_settings", "payment_settings", 1, { bank_name, account_name, account_number: account_number ? "updated" : "empty" });
+  res.json({ settings:data, message:"Bank transfer settings saved." });
+});
+app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data: payment } = await db.from("stc_payments").select("receipt_key")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
+  const { data, error } = await db.storage.from("stc-payment-receipts").createSignedUrl(payment.receipt_key, 300);
+  if (error) return sendError(res, error, 500);
+  res.json({ url:data.signedUrl, expires_in:300 });
+});
+app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const id = Number(req.params.id);
+  const decision = clean(req.body?.decision);
+  const rejection_reason = clean(req.body?.rejection_reason);
+  if (!Number.isSafeInteger(id) || id < 1 || !["approve","reject"].includes(decision)) return res.status(400).json({ error: "Invalid verification action." });
+  const { data: payment } = await db.from("stc_payments").select("*").eq("id",id).maybeSingle();
+  if (!payment || payment.method !== "bank_transfer") return res.status(404).json({ error: "Bank transfer payment not found." });
+  if (payment.status !== "pending_verification") return res.status(409).json({ error: "This payment has already been reviewed." });
+  if (decision === "reject" && !rejection_reason) return res.status(400).json({ error: "Give a reason for rejecting this receipt." });
+  const nextStatus = decision === "approve" ? "success" : "rejected";
+  const { data, error } = await db.from("stc_payments").update({
+    status:nextStatus, verified_by:req.user.id,
+    verified_at:new Date().toISOString(),
+    rejection_reason:decision === "reject" ? rejection_reason.slice(0,500) : null
+  }).eq("id",id).eq("status","pending_verification").select("*").maybeSingle();
+  if (error) return sendError(res,error,400);
+  if (!data) return res.status(409).json({ error:"Payment was already reviewed." });
+  if (decision === "approve" && payment.invoice_id) {
+    const { data: successful } = await db.from("stc_payments").select("amount")
+      .eq("invoice_id",payment.invoice_id).eq("status","success");
+    const paid = (successful || []).reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const { data: invoice } = await db.from("stc_invoices").select("amount,client_user_id")
+      .eq("id",payment.invoice_id).maybeSingle();
+    if (invoice) await db.from("stc_invoices").update({
+      status:paid + 0.005 >= Number(invoice.amount) ? "paid" : "partially_paid"
+    }).eq("id",payment.invoice_id);
+  }
+  await db.from("stc_notifications").insert({
+    user_id:payment.client_user_id,
+    title:decision === "approve" ? "Bank transfer verified" : "Receipt needs attention",
+    body:decision === "approve" ? "Your bank transfer " + payment.reference + " has been confirmed." : "Your receipt was not verified: " + rejection_reason
+  });
+  await audit(req.user, decision === "approve" ? "verify_bank_transfer" : "reject_bank_transfer", "payments", id, { reference:payment.reference });
+  res.json({ payment:data, message:decision === "approve" ? "Payment verified." : "Receipt rejected." });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});
++values.length+' OR p.full_name ILIKE , requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
+app.get("/api/admin/:resource", requireStaff, async (req, res) => {
+  const table = adminTables[req.params.resource];
+  if (!table) return res.status(404).json({ error: "Unknown admin resource." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  const { data, error } = await db.from(table).select("*").limit(100);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+app.post("/api/admin/:resource", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+    return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    const user_id = clean(req.body?.user_id);
+    const role = clean(req.body?.role);
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
+    const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
+    if (error) return sendError(res, error, 400);
+    await audit(req.user, "assign_staff_role", "staff", user_id, { role });
+    return res.status(201).json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  const fields = {
+    projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["client_user_id", "project_id", "quote_id", "reference", "description", "amount", "currency", "status", "due_date"],
+    tickets: ["client_user_id", "subject", "message", "status", "priority"],
+    services: ["slug", "name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "slug", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "slug", "category", "summary", "details", "url", "featured"]
+  }[resource];
+  const payload = Object.fromEntries(fields.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["projects", "quotes", "invoices", "tickets"].includes(resource) && !payload.client_user_id) {
+    return res.status(400).json({ error: "A client user ID is required." });
+  }
+  const { data, error } = await db.from(table).insert(payload).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "create", resource, data.id, { fields: Object.keys(payload) });
+  res.status(201).json({ item: data });
+});
+app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
+    const payload = {};
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
+    if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
+    if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
+    const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
+    if (error) return sendError(res, error, 400);
+    if (!data) return res.status(404).json({ error: "Staff record not found." });
+    await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
+    return res.json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  const editable = {
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["description", "amount", "currency", "status", "due_date"],
+    tickets: ["status", "priority"],
+    services: ["name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "category", "summary", "details", "url", "featured"],
+    media: ["title", "description", "category", "is_featured", "is_published"]
+  }[resource];
+  if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
+  const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
+  if (resource === "invoices" && payload.status === "paid") {
+    return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
+  }
+  if (!Object.keys(payload).length) return res.status(400).json({ error: "No editable fields supplied." });
+  const { data, error } = await db.from(table).update(payload).eq("id", Number(req.params.id)).select("*").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Record not found." });
+  await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
+  res.json({ item: data });
+});
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
+app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  const title = clean(req.body?.title);
+  const category = clean(req.body?.category) || "STC";
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!title || !filename || !base64 || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return res.status(400).json({ error: "Upload a JPG, PNG, WEBP or GIF image with a title." });
+  }
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Image must be smaller than 8 MB." });
+  const extension = contentType.split("/")[1].replace("jpeg", "jpg");
+  const key = "gallery/" + crypto.randomUUID() + "." + extension;
+  const { error: uploadError } = await db.storage.from("stc-media").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data, error } = await db.from("stc_media").insert({
+    title, description: clean(req.body?.description), category, media_type: "image",
+    storage_key: key, content_type: contentType,
+    is_featured: Boolean(req.body?.is_featured), is_published: true
+  }).select("*").single();
+  if (error) return sendError(res, error, 500);
+  await audit(req.user, "upload", "media", data.id, { filename });
+  res.status(201).json({
+    item: { ...data, url: db.storage.from("stc-media").getPublicUrl(key).data.publicUrl }
+  });
+});
+app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  const { data, error } = await db.from("stc_messages").select("*")
+    .eq("ticket_id", Number(req.params.id)).order("created_at");
+  if (error) return sendError(res, error, 500);
+  res.json({ messages: data || [] });
+});
+app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  const message = clean(req.body?.message);
+  if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
+  const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  const { error } = await db.from("stc_messages").insert({
+    ticket_id: ticket.id, sender_user_id: req.user.id, message
+  });
+  if (error) return sendError(res, error, 500);
+  await db.from("stc_notifications").insert({
+    user_id: ticket.client_user_id, title: "Support replied",
+    body: "There is a new reply to your support ticket."
+  });
+  res.status(201).json({ message: "Reply sent." });
+});
+
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
+
+/* STC student accounts, training enrolments and bank-transfer verification */
+app.patch("/api/account/profile", requireUser, async (req, res) => {
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const full_name = clean(req.body?.full_name);
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
+  const study_level = clean(req.body?.study_level);
+  if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Enter valid account and profile details." });
+  }
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
+  const { data: existing } = await db.from("stc_profiles").select("student_number")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (account_type === "student" && !existing?.student_number) {
+    payload.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { error } = await db.from("stc_profiles").upsert(payload, { onConflict: "user_id" });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_account_profile", "profiles", req.user.id, { account_type });
+  res.json({ message: "Account profile saved.", account_type, student_number: payload.student_number || existing?.student_number || null });
+});
+
+app.post("/api/student/enrollments", requireUser, async (req, res) => {
+  const { data: profile } = await db.from("stc_profiles").select("account_type")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const course_name = clean(req.body?.course_name);
+  const mode = ["Online", "Physical", "Hybrid"].includes(req.body?.mode) ? req.body.mode : "Online";
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const placement_duration = clean(req.body?.placement_duration);
+  const start_date = clean(req.body?.start_date);
+  if (!course_name || course_name.length > 160 || institution.length > 180 ||
+      department.length > 160 || study_level.length > 80 || placement_duration.length > 80) {
+    return res.status(400).json({ error: "Check the programme and student details." });
+  }
+  const { data, error } = await db.from("stc_training_enrollments").insert({
+    user_id: req.user.id, course_name, mode, institution, department, study_level,
+    placement_duration, start_date: /^\\d{4}-\\d{2}-\\d{2}$/.test(start_date) ? start_date : null
+  }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
+  res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
+});
+
+app.get("/api/public/payment-settings", async (_req, res) => {
+  const { data, error } = await db.from("stc_payment_settings")
+    .select("bank_name,account_name,account_number,transfer_instructions").eq("id", 1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || null });
+});
+
+app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res) => {
+  const invoiceId = Number(req.params.id);
+  const transaction_reference = clean(req.body?.transaction_reference);
+  const base64 = clean(req.body?.receipt_base64);
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  if (!Number.isSafeInteger(invoiceId) || invoiceId < 1 || !transaction_reference ||
+      transaction_reference.length > 120 || !base64 ||
+      !["image/jpeg","image/png","image/webp","application/pdf"].includes(contentType)) {
+    return res.status(400).json({ error: "Provide the transfer reference and a JPG, PNG, WEBP or PDF receipt." });
+  }
+  const { data: invoice } = await db.from("stc_invoices").select("*")
+    .eq("id", invoiceId).eq("client_user_id", req.user.id).maybeSingle();
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (invoice.status === "paid") return res.status(409).json({ error: "This invoice is already paid." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
+  const amount = Number(req.body?.amount);
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
+    return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
+  }
+  const key = "receipts/" + req.user.id + "/" + crypto.randomUUID() + (contentType === "application/pdf" ? ".pdf" : contentType === "image/png" ? ".png" : contentType === "image/webp" ? ".webp" : ".jpg");
+  const { error: uploadError } = await db.storage.from("stc-payment-receipts").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const reference = "STC-BT-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+  const { data, error } = await db.from("stc_payments").insert({
+    invoice_id: invoice.id, client_user_id: req.user.id, reference, amount,
+    currency: invoice.currency || "NGN", method: "bank_transfer",
+    status: "pending_verification", receipt_key: key,
+    transaction_reference, receipt_submitted_at: new Date().toISOString(), notes: filename.slice(0,160)
+  }).select("id,reference,amount,currency,status,created_at").single();
+  if (error) {
+    await db.storage.from("stc-payment-receipts").remove([key]);
+    return sendError(res, error, 400);
+  }
+  await db.from("stc_notifications").insert({
+    user_id: req.user.id, title: "Transfer receipt received",
+    body: "Your transfer receipt " + reference + " is awaiting STC finance verification."
+  });
+  res.status(201).json({ payment: data, message: "Receipt submitted. Your payment will be confirmed after STC checks the bank account." });
+});
+
+app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || {} });
+});
+app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const bank_name = clean(req.body?.bank_name);
+  const account_name = clean(req.body?.account_name);
+  const account_number = clean(req.body?.account_number);
+  const transfer_instructions = clean(req.body?.transfer_instructions);
+  if (bank_name.length > 100 || account_name.length > 120 || (account_number && !/^\\d{10}$/.test(account_number)) || transfer_instructions.length > 800) {
+    return res.status(400).json({ error: "Check the bank details. Nigerian account numbers must contain 10 digits." });
+  }
+  const { data, error } = await db.from("stc_payment_settings").upsert({
+    id:1, bank_name:bank_name || null, account_name:account_name || null,
+    account_number:account_number || null, transfer_instructions:transfer_instructions || null,
+    updated_by:req.user.id, updated_at:new Date().toISOString()
+  }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_bank_transfer_settings", "payment_settings", 1, { bank_name, account_name, account_number: account_number ? "updated" : "empty" });
+  res.json({ settings:data, message:"Bank transfer settings saved." });
+});
+app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data: payment } = await db.from("stc_payments").select("receipt_key")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
+  const { data, error } = await db.storage.from("stc-payment-receipts").createSignedUrl(payment.receipt_key, 300);
+  if (error) return sendError(res, error, 500);
+  res.json({ url:data.signedUrl, expires_in:300 });
+});
+app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const id = Number(req.params.id);
+  const decision = clean(req.body?.decision);
+  const rejection_reason = clean(req.body?.rejection_reason);
+  if (!Number.isSafeInteger(id) || id < 1 || !["approve","reject"].includes(decision)) return res.status(400).json({ error: "Invalid verification action." });
+  const { data: payment } = await db.from("stc_payments").select("*").eq("id",id).maybeSingle();
+  if (!payment || payment.method !== "bank_transfer") return res.status(404).json({ error: "Bank transfer payment not found." });
+  if (payment.status !== "pending_verification") return res.status(409).json({ error: "This payment has already been reviewed." });
+  if (decision === "reject" && !rejection_reason) return res.status(400).json({ error: "Give a reason for rejecting this receipt." });
+  const nextStatus = decision === "approve" ? "success" : "rejected";
+  const { data, error } = await db.from("stc_payments").update({
+    status:nextStatus, verified_by:req.user.id,
+    verified_at:new Date().toISOString(),
+    rejection_reason:decision === "reject" ? rejection_reason.slice(0,500) : null
+  }).eq("id",id).eq("status","pending_verification").select("*").maybeSingle();
+  if (error) return sendError(res,error,400);
+  if (!data) return res.status(409).json({ error:"Payment was already reviewed." });
+  if (decision === "approve" && payment.invoice_id) {
+    const { data: successful } = await db.from("stc_payments").select("amount")
+      .eq("invoice_id",payment.invoice_id).eq("status","success");
+    const paid = (successful || []).reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const { data: invoice } = await db.from("stc_invoices").select("amount,client_user_id")
+      .eq("id",payment.invoice_id).maybeSingle();
+    if (invoice) await db.from("stc_invoices").update({
+      status:paid + 0.005 >= Number(invoice.amount) ? "paid" : "partially_paid"
+    }).eq("id",payment.invoice_id);
+  }
+  await db.from("stc_notifications").insert({
+    user_id:payment.client_user_id,
+    title:decision === "approve" ? "Bank transfer verified" : "Receipt needs attention",
+    body:decision === "approve" ? "Your bank transfer " + payment.reference + " has been confirmed." : "Your receipt was not verified: " + rejection_reason
+  });
+  await audit(req.user, decision === "approve" ? "verify_bank_transfer" : "reject_bank_transfer", "payments", id, { reference:payment.reference });
+  res.json({ payment:data, message:decision === "approve" ? "Payment verified." : "Receipt rejected." });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});
++values.length+' OR p.phone ILIKE , requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
+app.get("/api/admin/:resource", requireStaff, async (req, res) => {
+  const table = adminTables[req.params.resource];
+  if (!table) return res.status(404).json({ error: "Unknown admin resource." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  const { data, error } = await db.from(table).select("*").limit(100);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+app.post("/api/admin/:resource", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+    return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    const user_id = clean(req.body?.user_id);
+    const role = clean(req.body?.role);
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
+    const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
+    if (error) return sendError(res, error, 400);
+    await audit(req.user, "assign_staff_role", "staff", user_id, { role });
+    return res.status(201).json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  const fields = {
+    projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["client_user_id", "project_id", "quote_id", "reference", "description", "amount", "currency", "status", "due_date"],
+    tickets: ["client_user_id", "subject", "message", "status", "priority"],
+    services: ["slug", "name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "slug", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "slug", "category", "summary", "details", "url", "featured"]
+  }[resource];
+  const payload = Object.fromEntries(fields.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["projects", "quotes", "invoices", "tickets"].includes(resource) && !payload.client_user_id) {
+    return res.status(400).json({ error: "A client user ID is required." });
+  }
+  const { data, error } = await db.from(table).insert(payload).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "create", resource, data.id, { fields: Object.keys(payload) });
+  res.status(201).json({ item: data });
+});
+app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
+    const payload = {};
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
+    if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
+    if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
+    const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
+    if (error) return sendError(res, error, 400);
+    if (!data) return res.status(404).json({ error: "Staff record not found." });
+    await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
+    return res.json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  const editable = {
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["description", "amount", "currency", "status", "due_date"],
+    tickets: ["status", "priority"],
+    services: ["name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "category", "summary", "details", "url", "featured"],
+    media: ["title", "description", "category", "is_featured", "is_published"]
+  }[resource];
+  if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
+  const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
+  if (resource === "invoices" && payload.status === "paid") {
+    return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
+  }
+  if (!Object.keys(payload).length) return res.status(400).json({ error: "No editable fields supplied." });
+  const { data, error } = await db.from(table).update(payload).eq("id", Number(req.params.id)).select("*").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Record not found." });
+  await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
+  res.json({ item: data });
+});
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
+app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  const title = clean(req.body?.title);
+  const category = clean(req.body?.category) || "STC";
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!title || !filename || !base64 || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return res.status(400).json({ error: "Upload a JPG, PNG, WEBP or GIF image with a title." });
+  }
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Image must be smaller than 8 MB." });
+  const extension = contentType.split("/")[1].replace("jpeg", "jpg");
+  const key = "gallery/" + crypto.randomUUID() + "." + extension;
+  const { error: uploadError } = await db.storage.from("stc-media").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data, error } = await db.from("stc_media").insert({
+    title, description: clean(req.body?.description), category, media_type: "image",
+    storage_key: key, content_type: contentType,
+    is_featured: Boolean(req.body?.is_featured), is_published: true
+  }).select("*").single();
+  if (error) return sendError(res, error, 500);
+  await audit(req.user, "upload", "media", data.id, { filename });
+  res.status(201).json({
+    item: { ...data, url: db.storage.from("stc-media").getPublicUrl(key).data.publicUrl }
+  });
+});
+app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  const { data, error } = await db.from("stc_messages").select("*")
+    .eq("ticket_id", Number(req.params.id)).order("created_at");
+  if (error) return sendError(res, error, 500);
+  res.json({ messages: data || [] });
+});
+app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  const message = clean(req.body?.message);
+  if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
+  const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  const { error } = await db.from("stc_messages").insert({
+    ticket_id: ticket.id, sender_user_id: req.user.id, message
+  });
+  if (error) return sendError(res, error, 500);
+  await db.from("stc_notifications").insert({
+    user_id: ticket.client_user_id, title: "Support replied",
+    body: "There is a new reply to your support ticket."
+  });
+  res.status(201).json({ message: "Reply sent." });
+});
+
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
+
+/* STC student accounts, training enrolments and bank-transfer verification */
+app.patch("/api/account/profile", requireUser, async (req, res) => {
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const full_name = clean(req.body?.full_name);
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
+  const study_level = clean(req.body?.study_level);
+  if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Enter valid account and profile details." });
+  }
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
+  const { data: existing } = await db.from("stc_profiles").select("student_number")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (account_type === "student" && !existing?.student_number) {
+    payload.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { error } = await db.from("stc_profiles").upsert(payload, { onConflict: "user_id" });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_account_profile", "profiles", req.user.id, { account_type });
+  res.json({ message: "Account profile saved.", account_type, student_number: payload.student_number || existing?.student_number || null });
+});
+
+app.post("/api/student/enrollments", requireUser, async (req, res) => {
+  const { data: profile } = await db.from("stc_profiles").select("account_type")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const course_name = clean(req.body?.course_name);
+  const mode = ["Online", "Physical", "Hybrid"].includes(req.body?.mode) ? req.body.mode : "Online";
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const placement_duration = clean(req.body?.placement_duration);
+  const start_date = clean(req.body?.start_date);
+  if (!course_name || course_name.length > 160 || institution.length > 180 ||
+      department.length > 160 || study_level.length > 80 || placement_duration.length > 80) {
+    return res.status(400).json({ error: "Check the programme and student details." });
+  }
+  const { data, error } = await db.from("stc_training_enrollments").insert({
+    user_id: req.user.id, course_name, mode, institution, department, study_level,
+    placement_duration, start_date: /^\\d{4}-\\d{2}-\\d{2}$/.test(start_date) ? start_date : null
+  }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
+  res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
+});
+
+app.get("/api/public/payment-settings", async (_req, res) => {
+  const { data, error } = await db.from("stc_payment_settings")
+    .select("bank_name,account_name,account_number,transfer_instructions").eq("id", 1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || null });
+});
+
+app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res) => {
+  const invoiceId = Number(req.params.id);
+  const transaction_reference = clean(req.body?.transaction_reference);
+  const base64 = clean(req.body?.receipt_base64);
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  if (!Number.isSafeInteger(invoiceId) || invoiceId < 1 || !transaction_reference ||
+      transaction_reference.length > 120 || !base64 ||
+      !["image/jpeg","image/png","image/webp","application/pdf"].includes(contentType)) {
+    return res.status(400).json({ error: "Provide the transfer reference and a JPG, PNG, WEBP or PDF receipt." });
+  }
+  const { data: invoice } = await db.from("stc_invoices").select("*")
+    .eq("id", invoiceId).eq("client_user_id", req.user.id).maybeSingle();
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (invoice.status === "paid") return res.status(409).json({ error: "This invoice is already paid." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
+  const amount = Number(req.body?.amount);
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
+    return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
+  }
+  const key = "receipts/" + req.user.id + "/" + crypto.randomUUID() + (contentType === "application/pdf" ? ".pdf" : contentType === "image/png" ? ".png" : contentType === "image/webp" ? ".webp" : ".jpg");
+  const { error: uploadError } = await db.storage.from("stc-payment-receipts").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const reference = "STC-BT-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+  const { data, error } = await db.from("stc_payments").insert({
+    invoice_id: invoice.id, client_user_id: req.user.id, reference, amount,
+    currency: invoice.currency || "NGN", method: "bank_transfer",
+    status: "pending_verification", receipt_key: key,
+    transaction_reference, receipt_submitted_at: new Date().toISOString(), notes: filename.slice(0,160)
+  }).select("id,reference,amount,currency,status,created_at").single();
+  if (error) {
+    await db.storage.from("stc-payment-receipts").remove([key]);
+    return sendError(res, error, 400);
+  }
+  await db.from("stc_notifications").insert({
+    user_id: req.user.id, title: "Transfer receipt received",
+    body: "Your transfer receipt " + reference + " is awaiting STC finance verification."
+  });
+  res.status(201).json({ payment: data, message: "Receipt submitted. Your payment will be confirmed after STC checks the bank account." });
+});
+
+app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || {} });
+});
+app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const bank_name = clean(req.body?.bank_name);
+  const account_name = clean(req.body?.account_name);
+  const account_number = clean(req.body?.account_number);
+  const transfer_instructions = clean(req.body?.transfer_instructions);
+  if (bank_name.length > 100 || account_name.length > 120 || (account_number && !/^\\d{10}$/.test(account_number)) || transfer_instructions.length > 800) {
+    return res.status(400).json({ error: "Check the bank details. Nigerian account numbers must contain 10 digits." });
+  }
+  const { data, error } = await db.from("stc_payment_settings").upsert({
+    id:1, bank_name:bank_name || null, account_name:account_name || null,
+    account_number:account_number || null, transfer_instructions:transfer_instructions || null,
+    updated_by:req.user.id, updated_at:new Date().toISOString()
+  }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_bank_transfer_settings", "payment_settings", 1, { bank_name, account_name, account_number: account_number ? "updated" : "empty" });
+  res.json({ settings:data, message:"Bank transfer settings saved." });
+});
+app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data: payment } = await db.from("stc_payments").select("receipt_key")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
+  const { data, error } = await db.storage.from("stc-payment-receipts").createSignedUrl(payment.receipt_key, 300);
+  if (error) return sendError(res, error, 500);
+  res.json({ url:data.signedUrl, expires_in:300 });
+});
+app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const id = Number(req.params.id);
+  const decision = clean(req.body?.decision);
+  const rejection_reason = clean(req.body?.rejection_reason);
+  if (!Number.isSafeInteger(id) || id < 1 || !["approve","reject"].includes(decision)) return res.status(400).json({ error: "Invalid verification action." });
+  const { data: payment } = await db.from("stc_payments").select("*").eq("id",id).maybeSingle();
+  if (!payment || payment.method !== "bank_transfer") return res.status(404).json({ error: "Bank transfer payment not found." });
+  if (payment.status !== "pending_verification") return res.status(409).json({ error: "This payment has already been reviewed." });
+  if (decision === "reject" && !rejection_reason) return res.status(400).json({ error: "Give a reason for rejecting this receipt." });
+  const nextStatus = decision === "approve" ? "success" : "rejected";
+  const { data, error } = await db.from("stc_payments").update({
+    status:nextStatus, verified_by:req.user.id,
+    verified_at:new Date().toISOString(),
+    rejection_reason:decision === "reject" ? rejection_reason.slice(0,500) : null
+  }).eq("id",id).eq("status","pending_verification").select("*").maybeSingle();
+  if (error) return sendError(res,error,400);
+  if (!data) return res.status(409).json({ error:"Payment was already reviewed." });
+  if (decision === "approve" && payment.invoice_id) {
+    const { data: successful } = await db.from("stc_payments").select("amount")
+      .eq("invoice_id",payment.invoice_id).eq("status","success");
+    const paid = (successful || []).reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const { data: invoice } = await db.from("stc_invoices").select("amount,client_user_id")
+      .eq("id",payment.invoice_id).maybeSingle();
+    if (invoice) await db.from("stc_invoices").update({
+      status:paid + 0.005 >= Number(invoice.amount) ? "paid" : "partially_paid"
+    }).eq("id",payment.invoice_id);
+  }
+  await db.from("stc_notifications").insert({
+    user_id:payment.client_user_id,
+    title:decision === "approve" ? "Bank transfer verified" : "Receipt needs attention",
+    body:decision === "approve" ? "Your bank transfer " + payment.reference + " has been confirmed." : "Your receipt was not verified: " + rejection_reason
+  });
+  await audit(req.user, decision === "approve" ? "verify_bank_transfer" : "reject_bank_transfer", "payments", id, { reference:payment.reference });
+  res.json({ payment:data, message:decision === "approve" ? "Payment verified." : "Receipt rejected." });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});
++values.length+' OR p.student_number ILIKE , requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const {data:enrollments,enrollError}=ids.length?await db.from("stc_training_enrollments").select("id,user_id,course_name,status,created_at").in("user_id",ids).order("created_at",{ascending:false}):{data:[],error:null};
+  if(enrollError)return sendError(res,enrollError,500);
+  const {data:projects,error:projectError}=ids.length?await db.from("stc_projects").select("id,client_user_id,title,service,status").in("client_user_id",ids).eq("status","completed"):{data:[],error:null};
+  if(projectError)return sendError(res,projectError,500);
+  res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/clients", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
+  if(error)return sendError(res,error,500);
+  const ids=(profiles||[]).map(p=>p.user_id);
+  const [projects,invoices]=await Promise.all([
+    ids.length?db.from("stc_projects").select("id,client_user_id").in("client_user_id",ids):Promise.resolve({data:[],error:null}),
+    ids.length?db.from("stc_invoices").select("id,client_user_id,status,amount,currency").in("client_user_id",ids):Promise.resolve({data:[],error:null})
+  ]);
+  if(projects.error)return sendError(res,projects.error,500);
+  if(invoices.error)return sendError(res,invoices.error,500);
+  res.json({items:(profiles||[]).map(p=>({...p,project_count:(projects.data||[]).filter(x=>x.client_user_id===p.user_id).length,invoice_count:(invoices.data||[]).filter(x=>x.client_user_id===p.user_id).length}))});
+});
+app.get("/api/admin/staff", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the staff directory."});
+  const {data:roles,error}=await db.from("stc_staff_roles").select("user_id,role,is_active").order("role");
+  if(error)return sendError(res,error,500);
+  const ids=(roles||[]).map(item=>item.user_id);
+  const {data:profiles, error:profileError}=ids.length
+    ? await db.from("stc_profiles").select("user_id,full_name,phone,department,account_type").in("user_id",ids)
+    : {data:[],error:null};
+  if(profileError)return sendError(res,profileError,500);
+  const byUser=new Map((profiles||[]).map(profile=>[profile.user_id,profile]));
+  const items=(roles||[]).map(item=>{
+    const profile=byUser.get(item.user_id)||{};
+    return {
+      full_name:profile.full_name||"Profile not completed",
+      phone:profile.phone||"",
+      department:profile.department||"",
+      role:item.role,
+      is_active:item.is_active,
+      user_id:item.user_id,
+      account_type:profile.account_type||""
+    };
+  });
+  res.json({items});
+});
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
+app.get("/api/admin/:resource", requireStaff, async (req, res) => {
+  const table = adminTables[req.params.resource];
+  if (!table) return res.status(404).json({ error: "Unknown admin resource." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  const { data, error } = await db.from(table).select("*").limit(100);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+app.post("/api/admin/:resource", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || ["enquiries", "payments", "profiles", "media", "certificates", "awards"].includes(resource)) {
+    return res.status(403).json({ error: "This resource cannot be created here." });
+  }
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    const user_id = clean(req.body?.user_id);
+    const role = clean(req.body?.role);
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
+    const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
+    if (error) return sendError(res, error, 400);
+    await audit(req.user, "assign_staff_role", "staff", user_id, { role });
+    return res.status(201).json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  const fields = {
+    projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["client_user_id", "project_id", "quote_id", "reference", "description", "amount", "currency", "status", "due_date"],
+    tickets: ["client_user_id", "subject", "message", "status", "priority"],
+    services: ["slug", "name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "slug", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "slug", "category", "summary", "details", "url", "featured"]
+  }[resource];
+  const payload = Object.fromEntries(fields.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["projects", "quotes", "invoices", "tickets"].includes(resource) && !payload.client_user_id) {
+    return res.status(400).json({ error: "A client user ID is required." });
+  }
+  const { data, error } = await db.from(table).insert(payload).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "create", resource, data.id, { fields: Object.keys(payload) });
+  res.status(201).json({ item: data });
+});
+app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
+  const resource = req.params.resource;
+  const table = adminTables[resource];
+  if (!table || resource === "profiles") return res.status(403).json({ error: "This resource cannot be edited here." });
+  if (resource === "staff") {
+    if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
+    if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
+    const payload = {};
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
+    if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
+    if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
+    const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
+    if (error) return sendError(res, error, 400);
+    if (!data) return res.status(404).json({ error: "Staff record not found." });
+    await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
+    return res.json({ item: data });
+  }
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  const editable = {
+    certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
+    quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
+    invoices: ["description", "amount", "currency", "status", "due_date"],
+    tickets: ["status", "priority"],
+    services: ["name", "summary", "description", "active", "sort_order"],
+    posts: ["title", "excerpt", "body", "status", "published_at"],
+    portfolio: ["title", "category", "summary", "details", "url", "featured"],
+    media: ["title", "description", "category", "is_featured", "is_published"]
+  }[resource];
+  if (!editable) return res.status(404).json({ error: "Unknown admin resource." });
+  const payload = Object.fromEntries(editable.filter(key => req.body?.[key] !== undefined).map(key => [key, req.body[key]]));
+  if (["certificates","awards"].includes(resource) && !["draft","issued","revoked"].includes(payload.status)) return res.status(400).json({error:"Credential status must be draft, issued or revoked."});
+  if (resource === "invoices" && payload.status === "paid") {
+    return res.status(400).json({ error: "Invoices are marked paid only after server-side payment verification." });
+  }
+  if (!Object.keys(payload).length) return res.status(400).json({ error: "No editable fields supplied." });
+  const { data, error } = await db.from(table).update(payload).eq("id", Number(req.params.id)).select("*").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Record not found." });
+  await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
+  res.json({ item: data });
+});
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
+app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  const title = clean(req.body?.title);
+  const category = clean(req.body?.category) || "STC";
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  const base64 = clean(req.body?.base64);
+  if (!title || !filename || !base64 || !/^image\/(jpeg|png|webp|gif)$/.test(contentType)) {
+    return res.status(400).json({ error: "Upload a JPG, PNG, WEBP or GIF image with a title." });
+  }
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(400).json({ error: "Image must be smaller than 8 MB." });
+  const extension = contentType.split("/")[1].replace("jpeg", "jpg");
+  const key = "gallery/" + crypto.randomUUID() + "." + extension;
+  const { error: uploadError } = await db.storage.from("stc-media").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const { data, error } = await db.from("stc_media").insert({
+    title, description: clean(req.body?.description), category, media_type: "image",
+    storage_key: key, content_type: contentType,
+    is_featured: Boolean(req.body?.is_featured), is_published: true
+  }).select("*").single();
+  if (error) return sendError(res, error, 500);
+  await audit(req.user, "upload", "media", data.id, { filename });
+  res.status(201).json({
+    item: { ...data, url: db.storage.from("stc-media").getPublicUrl(key).data.publicUrl }
+  });
+});
+app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  const { data, error } = await db.from("stc_messages").select("*")
+    .eq("ticket_id", Number(req.params.id)).order("created_at");
+  if (error) return sendError(res, error, 500);
+  res.json({ messages: data || [] });
+});
+app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  const message = clean(req.body?.message);
+  if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
+  const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  const { error } = await db.from("stc_messages").insert({
+    ticket_id: ticket.id, sender_user_id: req.user.id, message
+  });
+  if (error) return sendError(res, error, 500);
+  await db.from("stc_notifications").insert({
+    user_id: ticket.client_user_id, title: "Support replied",
+    body: "There is a new reply to your support ticket."
+  });
+  res.status(201).json({ message: "Reply sent." });
+});
+
+app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
+  const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Post not found." });
+  await audit(req.user, "delete", "posts", id, {});
+  res.json({ message: "Announcement removed." });
+});
+
+/* STC student accounts, training enrolments and bank-transfer verification */
+app.patch("/api/account/profile", requireUser, async (req, res) => {
+  const account_type = ["student", "client"].includes(req.body?.account_type) ? req.body.account_type : null;
+  const full_name = clean(req.body?.full_name);
+  const phone = clean(req.body?.phone);
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const company = clean(req.body?.company);
+  const study_level = clean(req.body?.study_level);
+  if (!account_type || !full_name || full_name.length > 120 || phone.length > 40 ||
+      institution.length > 180 || department.length > 160 || study_level.length > 80 || company.length > 160) {
+    return res.status(400).json({ error: "Enter valid account and profile details." });
+  }
+  const payload = { user_id: req.user.id, account_type, full_name, phone, institution, department, study_level, company };
+  const { data: existing } = await db.from("stc_profiles").select("student_number")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (account_type === "student" && !existing?.student_number) {
+    payload.student_number = "STC-STU-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+  }
+  const { error } = await db.from("stc_profiles").upsert(payload, { onConflict: "user_id" });
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_account_profile", "profiles", req.user.id, { account_type });
+  res.json({ message: "Account profile saved.", account_type, student_number: payload.student_number || existing?.student_number || null });
+});
+
+app.post("/api/student/enrollments", requireUser, async (req, res) => {
+  const { data: profile } = await db.from("stc_profiles").select("account_type")
+    .eq("user_id", req.user.id).maybeSingle();
+  if (profile?.account_type !== "student") return res.status(403).json({ error: "A student account is required." });
+  const course_name = clean(req.body?.course_name);
+  const mode = ["Online", "Physical", "Hybrid"].includes(req.body?.mode) ? req.body.mode : "Online";
+  const institution = clean(req.body?.institution);
+  const department = clean(req.body?.department);
+  const study_level = clean(req.body?.study_level);
+  const placement_duration = clean(req.body?.placement_duration);
+  const start_date = clean(req.body?.start_date);
+  if (!course_name || course_name.length > 160 || institution.length > 180 ||
+      department.length > 160 || study_level.length > 80 || placement_duration.length > 80) {
+    return res.status(400).json({ error: "Check the programme and student details." });
+  }
+  const { data, error } = await db.from("stc_training_enrollments").insert({
+    user_id: req.user.id, course_name, mode, institution, department, study_level,
+    placement_duration, start_date: /^\\d{4}-\\d{2}-\\d{2}$/.test(start_date) ? start_date : null
+  }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "submit_training_enrollment", "training_enrollments", data.id, { course_name });
+  try {
+    await sendStcEmail({
+      to: adminEmail || "stanleytechconnect@gmail.com",
+      subject: "New STC training application: " + course_name,
+      text: [
+        "New STC training / SIWES application",
+        "",
+        "Applicant: " + clean(req.user.name || req.user.email),
+        "Email: " + clean(req.user.email),
+        "Programme: " + course_name,
+        "Mode: " + mode,
+        "Institution: " + (institution || "Not provided"),
+        "Department: " + (department || "Not provided"),
+        "Study level: " + (study_level || "Not provided"),
+        "Placement duration: " + (placement_duration || "Not provided"),
+        "Start date: " + (start_date || "Not provided"),
+        "Application ID: " + data.id
+      ].join("\\n"),
+      replyTo: clean(req.user.email)
+    });
+  } catch (emailError) {
+    console.error("STC training application email failed:", emailError.message);
+  }
+  res.status(201).json({ enrollment: data, message: "Your training application has been submitted for review." });
+});
+
+app.get("/api/public/payment-settings", async (_req, res) => {
+  const { data, error } = await db.from("stc_payment_settings")
+    .select("bank_name,account_name,account_number,transfer_instructions").eq("id", 1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || null });
+});
+
+app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res) => {
+  const invoiceId = Number(req.params.id);
+  const transaction_reference = clean(req.body?.transaction_reference);
+  const base64 = clean(req.body?.receipt_base64);
+  const filename = clean(req.body?.filename);
+  const contentType = clean(req.body?.content_type);
+  if (!Number.isSafeInteger(invoiceId) || invoiceId < 1 || !transaction_reference ||
+      transaction_reference.length > 120 || !base64 ||
+      !["image/jpeg","image/png","image/webp","application/pdf"].includes(contentType)) {
+    return res.status(400).json({ error: "Provide the transfer reference and a JPG, PNG, WEBP or PDF receipt." });
+  }
+  const { data: invoice } = await db.from("stc_invoices").select("*")
+    .eq("id", invoiceId).eq("client_user_id", req.user.id).maybeSingle();
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (invoice.status === "paid") return res.status(409).json({ error: "This invoice is already paid." });
+  const bytes = Buffer.from(base64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) return res.status(400).json({ error: "Receipt must be smaller than 5 MB." });
+  const amount = Number(req.body?.amount);
+  const { data: paidRows } = await db.from("stc_payments").select("amount").eq("invoice_id", invoice.id).eq("status", "success");
+  const alreadyPaid = (paidRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const outstanding = Math.max(0, Number(invoice.amount) - alreadyPaid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.amount) || amount > outstanding + 0.01) {
+    return res.status(400).json({ error: "Enter a valid payment amount not exceeding the invoice balance." });
+  }
+  const key = "receipts/" + req.user.id + "/" + crypto.randomUUID() + (contentType === "application/pdf" ? ".pdf" : contentType === "image/png" ? ".png" : contentType === "image/webp" ? ".webp" : ".jpg");
+  const { error: uploadError } = await db.storage.from("stc-payment-receipts").upload(key, bytes, { contentType, upsert: false });
+  if (uploadError) return sendError(res, uploadError, 400);
+  const reference = "STC-BT-" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+  const { data, error } = await db.from("stc_payments").insert({
+    invoice_id: invoice.id, client_user_id: req.user.id, reference, amount,
+    currency: invoice.currency || "NGN", method: "bank_transfer",
+    status: "pending_verification", receipt_key: key,
+    transaction_reference, receipt_submitted_at: new Date().toISOString(), notes: filename.slice(0,160)
+  }).select("id,reference,amount,currency,status,created_at").single();
+  if (error) {
+    await db.storage.from("stc-payment-receipts").remove([key]);
+    return sendError(res, error, 400);
+  }
+  await db.from("stc_notifications").insert({
+    user_id: req.user.id, title: "Transfer receipt received",
+    body: "Your transfer receipt " + reference + " is awaiting STC finance verification."
+  });
+  res.status(201).json({ payment: data, message: "Receipt submitted. Your payment will be confirmed after STC checks the bank account." });
+});
+
+app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
+  if (error) return sendError(res, error, 500);
+  res.json({ settings: data || {} });
+});
+app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const bank_name = clean(req.body?.bank_name);
+  const account_name = clean(req.body?.account_name);
+  const account_number = clean(req.body?.account_number);
+  const transfer_instructions = clean(req.body?.transfer_instructions);
+  if (bank_name.length > 100 || account_name.length > 120 || (account_number && !/^\\d{10}$/.test(account_number)) || transfer_instructions.length > 800) {
+    return res.status(400).json({ error: "Check the bank details. Nigerian account numbers must contain 10 digits." });
+  }
+  const { data, error } = await db.from("stc_payment_settings").upsert({
+    id:1, bank_name:bank_name || null, account_name:account_name || null,
+    account_number:account_number || null, transfer_instructions:transfer_instructions || null,
+    updated_by:req.user.id, updated_at:new Date().toISOString()
+  }, { onConflict:"id" }).select("*").single();
+  if (error) return sendError(res, error, 400);
+  await audit(req.user, "update_bank_transfer_settings", "payment_settings", 1, { bank_name, account_name, account_number: account_number ? "updated" : "empty" });
+  res.json({ settings:data, message:"Bank transfer settings saved." });
+});
+app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  const { data: payment } = await db.from("stc_payments").select("receipt_key")
+    .eq("id", Number(req.params.id)).maybeSingle();
+  if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
+  const { data, error } = await db.storage.from("stc-payment-receipts").createSignedUrl(payment.receipt_key, 300);
+  if (error) return sendError(res, error, 500);
+  res.json({ url:data.signedUrl, expires_in:300 });
+});
+app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
+  const id = Number(req.params.id);
+  const decision = clean(req.body?.decision);
+  const rejection_reason = clean(req.body?.rejection_reason);
+  if (!Number.isSafeInteger(id) || id < 1 || !["approve","reject"].includes(decision)) return res.status(400).json({ error: "Invalid verification action." });
+  const { data: payment } = await db.from("stc_payments").select("*").eq("id",id).maybeSingle();
+  if (!payment || payment.method !== "bank_transfer") return res.status(404).json({ error: "Bank transfer payment not found." });
+  if (payment.status !== "pending_verification") return res.status(409).json({ error: "This payment has already been reviewed." });
+  if (decision === "reject" && !rejection_reason) return res.status(400).json({ error: "Give a reason for rejecting this receipt." });
+  const nextStatus = decision === "approve" ? "success" : "rejected";
+  const { data, error } = await db.from("stc_payments").update({
+    status:nextStatus, verified_by:req.user.id,
+    verified_at:new Date().toISOString(),
+    rejection_reason:decision === "reject" ? rejection_reason.slice(0,500) : null
+  }).eq("id",id).eq("status","pending_verification").select("*").maybeSingle();
+  if (error) return sendError(res,error,400);
+  if (!data) return res.status(409).json({ error:"Payment was already reviewed." });
+  if (decision === "approve" && payment.invoice_id) {
+    const { data: successful } = await db.from("stc_payments").select("amount")
+      .eq("invoice_id",payment.invoice_id).eq("status","success");
+    const paid = (successful || []).reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const { data: invoice } = await db.from("stc_invoices").select("amount,client_user_id")
+      .eq("id",payment.invoice_id).maybeSingle();
+    if (invoice) await db.from("stc_invoices").update({
+      status:paid + 0.005 >= Number(invoice.amount) ? "paid" : "partially_paid"
+    }).eq("id",payment.invoice_id);
+  }
+  await db.from("stc_notifications").insert({
+    user_id:payment.client_user_id,
+    title:decision === "approve" ? "Bank transfer verified" : "Receipt needs attention",
+    body:decision === "approve" ? "Your bank transfer " + payment.reference + " has been confirmed." : "Your receipt was not verified: " + rejection_reason
+  });
+  await audit(req.user, decision === "approve" ? "verify_bank_transfer" : "reject_bank_transfer", "payments", id, { reference:payment.reference });
+  res.json({ payment:data, message:decision === "approve" ? "Payment verified." : "Receipt rejected." });
+});
+
+app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
+app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});
++values.length+')');
+    }
+    if (type === "unclassified") where.push("p.account_type IS NULL");
+    else if (type) { values.push(type); where.push("p.account_type = $"+values.length); }
+    if (completion === "complete") where.push("(NULLIF(BTRIM(p.full_name),'') IS NOT NULL AND NULLIF(BTRIM(p.phone),'') IS NOT NULL AND p.account_type IS NOT NULL)");
+    else if (completion === "incomplete") where.push("(p.user_id IS NULL OR NULLIF(BTRIM(p.full_name),'') IS NULL OR NULLIF(BTRIM(p.phone),'') IS NULL OR p.account_type IS NULL)");
+    const result = await authDatabasePool.query(
+      'SELECT u.id AS user_id, COALESCE(NULLIF(p.full_name, \'\'), NULLIF(u.name, \'\'), u.email) AS full_name, u.email, COALESCE(p.account_type, \'unclassified\') AS account_type, p.phone, p.company, p.institution, p.department, p.study_level, p.student_number, u."emailVerified" AS email_verified, u."createdAt" AS created_at, sr.role AS staff_role, sr.is_active AS staff_active, (NULLIF(BTRIM(p.full_name), \'\') IS NOT NULL AND NULLIF(BTRIM(p.phone), \'\') IS NOT NULL AND p.account_type IS NOT NULL) AS profile_complete FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id LEFT JOIN public.stc_staff_roles sr ON sr.user_id = u.id' +
+      (where.length ? " WHERE "+where.join(" AND ") : "") +
+      ' ORDER BY u."createdAt" DESC NULLS LAST LIMIT 500',
+      values
+    );
+    const items = result.rows.map(row => ({...row, email_verified:Boolean(row.email_verified), profile_complete:Boolean(row.profile_complete), staff_active:row.staff_active === null ? null : Boolean(row.staff_active)}));
+    res.json({items, total:items.length, limit:500});
+  } catch (error) {
+    return sendError(res,error,500);
+  }
+});
 app.get("/api/admin/students", requireStaff, async (req,res) => {
   if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
   const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);

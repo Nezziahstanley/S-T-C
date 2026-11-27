@@ -934,8 +934,19 @@ app.get("/api/admin/staff", requireStaff, async (req,res) => {
   });
   res.json({items});
 });
+app.get("/api/admin/profiles/accounts", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"profiles","create"))) return res.status(403).json({error:"Your staff role cannot search accounts for profile creation."});
+  const term=clean(req.query?.q);
+  if(term.length<2)return res.json({accounts:[]});
+  if(term.length>120)return res.status(400).json({error:"Search text is too long."});
+  try{
+    const pattern="%"+term+"%";
+    const result=await authDatabasePool.query('SELECT u.id,u.email,u.name,p.full_name,p.account_type FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id=u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'),u.name),u.email LIMIT 12',[pattern]);
+    return res.json({accounts:result.rows.map(row=>({user_id:row.id,name:row.full_name||row.name||"Name not provided",email:row.email,account_type:row.account_type||"Profile incomplete"}))});
+  }catch(error){return sendError(res,error,500);}
+});
 app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
-  if (!(await staffCan(req,"profiles","create"))) return res.status(403).json({ error: "Your staff role cannot search accounts for profile creation." });
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
   const term = clean(req.query?.q);
   if (term.length < 2) return res.json({ accounts: [] });
   if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });

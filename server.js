@@ -121,15 +121,18 @@ async function requireStaff(req, res, next) {
   next();
 }
 
-const roleResources = {
-  manager: new Set(["enquiries", "projects", "quotes", "invoices", "payments", "tickets", "services", "posts", "portfolio", "media", "profiles", "enrollments", "certificates", "awards"]),
-  project_manager: new Set(["enquiries", "projects", "tickets"]),
-  finance: new Set(["quotes", "invoices", "payments"]),
-  support: new Set(["enquiries", "tickets"]),
-  content_editor: new Set(["services", "posts", "portfolio", "media"])
-};
-function staffCan(req, resource) {
-  return req.staffRole === "super_admin" || Boolean(roleResources[req.staffRole]?.has(resource));
+const permissionResources = Object.keys(adminTables).filter(resource => resource !== "staff");
+async function staffCan(req, resource, action = "read") {
+  if (req.staffRole === "super_admin") return true;
+  if (!["create", "read", "update", "delete"].includes(action)) return false;
+  const { data, error } = await db.from("stc_role_permissions")
+    .select("can_create,can_read,can_update,can_delete")
+    .eq("role_key", req.staffRole).eq("resource_key", resource).maybeSingle();
+  if (error) {
+    console.error("Staff permission lookup failed:", error.message);
+    return false;
+  }
+  return Boolean(data?.["can_" + action]);
 }
 
 function sendError(res, error, status = 400) {
@@ -745,7 +748,7 @@ const adminTables = {
   certificates: "stc_certificates", awards: "stc_awards"
 };
 app.get("/api/admin/students", requireStaff, async (req,res) => {
-  if (!staffCan(req,"enrollments")) return res.status(403).json({error:"Your staff role cannot access student records."});
+  if (!(await staffCan(req,"enrollments","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
   const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
   if(error)return sendError(res,error,500);
   const ids=(profiles||[]).map(p=>p.user_id);
@@ -756,7 +759,7 @@ app.get("/api/admin/students", requireStaff, async (req,res) => {
   res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
 });
 app.get("/api/admin/clients", requireStaff, async (req,res) => {
-  if (!staffCan(req,"profiles")) return res.status(403).json({error:"Your staff role cannot access client records."});
+  if (!(await staffCan(req,"profiles","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
   const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
   if(error)return sendError(res,error,500);
   const ids=(profiles||[]).map(p=>p.user_id);
@@ -816,10 +819,74 @@ app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
 });
 
 app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
-  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff permissions." });
-  const roles = ["manager", "project_manager", "finance", "support", "content_editor"];
-  const resources = [...new Set(roles.flatMap(role => [...(roleResources[role] || [])]))].sort();
-  res.json({ roles, resources, access: Object.fromEntries(roles.map(role => [role, [...(roleResources[role] || [])].sort()])) });
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
+  const [rolesResult, permissionsResult] = await Promise.all([
+    db.from("stc_staff_role_definitions").select("role_key,label,description,is_system,created_at,updated_at").order("label"),
+    db.from("stc_role_permissions").select("role_key,resource_key,can_create,can_read,can_update,can_delete").order("resource_key")
+  ]);
+  if (rolesResult.error) return sendError(res, rolesResult.error, 500);
+  if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, permissions: permissionsResult.data || [] });
+});
+app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
+  const role_key=clean(req.body?.role_key).toLowerCase().replace(/[^a-z0-9_]/g,"_");
+  const label=clean(req.body?.label), description=clean(req.body?.description);
+  if (!/^[a-z][a-z0-9_]{1,39}$/.test(role_key) || !label || label.length>80) return res.status(400).json({error:"Enter a valid role key and display name."});
+  const {data,error}=await db.from("stc_staff_role_definitions").insert({role_key,label,description,is_system:false}).select().single();
+  if(error)return sendError(res,error,400);
+  const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
+  const seeded=await db.from("stc_role_permissions").insert(rows);
+  if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
+  await audit(req.user,"create_staff_role","staff_role",role_key,{label});
+  res.status(201).json({item:data});
+});
+app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can edit staff roles."});
+  const roleKey=clean(req.params.roleKey), payload={};
+  if(typeof req.body?.label==="string" && clean(req.body.label)) payload.label=clean(req.body.label).slice(0,80);
+  if(typeof req.body?.description==="string") payload.description=clean(req.body.description).slice(0,500);
+  if(!Object.keys(payload).length)return res.status(400).json({error:"Supply a role name or description."});
+  payload.updated_at=new Date().toISOString();
+  const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Staff role not found."});
+  await audit(req.user,"update_staff_role_definition","staff_role",roleKey,payload);
+  res.json({item:data});
+});
+app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can delete staff roles."});
+  const roleKey=clean(req.params.roleKey);
+  const {data:role,error:roleError}=await db.from("stc_staff_role_definitions").select("role_key,is_system").eq("role_key",roleKey).maybeSingle();
+  if(roleError)return sendError(res,roleError,500);
+  if(!role)return res.status(404).json({error:"Staff role not found."});
+  if(role.is_system)return res.status(409).json({error:"Built-in roles cannot be deleted. You can rename them and change their permissions."});
+  const assigned=await db.from("stc_staff_roles").select("user_id",{count:"exact",head:true}).eq("role",roleKey);
+  if(assigned.error)return sendError(res,assigned.error,500);
+  if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
+  const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"delete_staff_role","staff_role",roleKey,{});
+  res.json({message:"Role deleted."});
+});
+app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can change staff permissions."});
+  const roleKey=clean(req.body?.role_key);
+  const changes=Array.isArray(req.body?.permissions)?req.body.permissions:[];
+  if(!roleKey||!changes.length||changes.length>permissionResources.length)return res.status(400).json({error:"Select a role and provide its permission settings."});
+  const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",roleKey).maybeSingle();
+  if(roleCheck.error)return sendError(res,roleCheck.error,500);
+  if(!roleCheck.data)return res.status(404).json({error:"Staff role not found."});
+  const allowed=new Set(permissionResources);
+  const rows=[];
+  for(const item of changes){
+    if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
+  }
+  const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
+  if(error)return sendError(res,error,400);
+  await audit(req.user,"update_staff_permissions","staff_role",roleKey,{resources:rows.length});
+  res.json({message:"Permissions saved.",updated:rows.length});
 });
 app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
   if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
@@ -833,7 +900,7 @@ app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });
-  if (!staffCan(req, req.params.resource)) return res.status(403).json({ error: "Your staff role cannot access this section." });
+  if (!(await staffCan(req, req.params.resource, "read"))) return res.status(403).json({ error: "Your staff role cannot access this section." });
   const { data, error } = await db.from(table).select("*").limit(100);
   if (error) return sendError(res, error, 500);
   res.json({ items: data || [] });
@@ -848,8 +915,8 @@ app.post("/api/admin/:resource", requireStaff, async (req, res) => {
     if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
     const user_id = clean(req.body?.user_id);
     const role = clean(req.body?.role);
-    const allowed = ["manager", "project_manager", "finance", "support", "content_editor"];
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !allowed.includes(role)) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",role).maybeSingle();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !roleCheck.data) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
     if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
     const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
     if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
@@ -858,7 +925,7 @@ app.post("/api/admin/:resource", requireStaff, async (req, res) => {
     await audit(req.user, "assign_staff_role", "staff", user_id, { role });
     return res.status(201).json({ item: data });
   }
-  if (!staffCan(req, resource)) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
+  if (!(await staffCan(req, resource, "create"))) return res.status(403).json({ error: "Your staff role cannot create records in this section." });
   const fields = {
     projects: ["client_user_id", "title", "description", "service", "status", "progress", "start_date", "due_date"],
     quotes: ["client_user_id", "enquiry_id", "reference", "title", "description", "amount", "currency", "status", "valid_until"],
@@ -885,7 +952,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
     if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff roles." });
     if (req.params.id === req.user.id) return res.status(409).json({ error: "You cannot change or suspend your own administrator access." });
     const payload = {};
-    if (["manager", "project_manager", "finance", "support", "content_editor"].includes(req.body?.role)) payload.role = req.body.role;
+    if (typeof req.body?.role === "string") { const roleCheck=await db.from("stc_staff_role_definitions").select("role_key").eq("role_key",req.body.role).maybeSingle(); if(roleCheck.data) payload.role=req.body.role; }
     if (typeof req.body?.is_active === "boolean") payload.is_active = req.body.is_active;
     if (!Object.keys(payload).length) return res.status(400).json({ error: "No valid staff fields supplied." });
     const { data, error } = await db.from("stc_staff_roles").update(payload).eq("user_id", req.params.id).select("*").maybeSingle();
@@ -894,7 +961,7 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
     await audit(req.user, "update_staff_role", "staff", req.params.id, payload);
     return res.json({ item: data });
   }
-  if (!staffCan(req, resource)) return res.status(403).json({ error: "Your staff role cannot edit this section." });
+  if (!(await staffCan(req, resource, "update"))) return res.status(403).json({ error: "Your staff role cannot edit this section." });
   const editable = {
     certificates: ["status"], awards: ["status"], enrollments: ["status", "supervisor", "study_level", "placement_duration"], enquiries: ["status"], projects: ["title", "description", "service", "status", "progress", "start_date", "due_date"],
     quotes: ["title", "description", "amount", "currency", "status", "valid_until"],
@@ -918,6 +985,19 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
   res.json({ item: data });
 });
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res) => {
+  const resource=req.params.resource, table=adminTables[resource];
+  const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
+  if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
+  if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Invalid record ID."});
+  const {data,error}=await db.from(table).delete().eq("id",id).select("id").maybeSingle();
+  if(error)return sendError(res,error,400);
+  if(!data)return res.status(404).json({error:"Record not found."});
+  await audit(req.user,"delete",resource,id,{});
+  res.json({message:"Record deleted."});
+});
 app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
   if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
   const userId = clean(req.params.id);
@@ -931,7 +1011,7 @@ app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
 });
 
 app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
-  if (!staffCan(req, "media")) return res.status(403).json({ error: "Your staff role cannot upload media." });
+  if (!(await staffCan(req, "media", "create"))) return res.status(403).json({ error: "Your staff role cannot upload media." });
   const title = clean(req.body?.title);
   const category = clean(req.body?.category) || "STC";
   const filename = clean(req.body?.filename);
@@ -958,14 +1038,14 @@ app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
   });
 });
 app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
-  if (!staffCan(req, "tickets")) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
   const { data, error } = await db.from("stc_messages").select("*")
     .eq("ticket_id", Number(req.params.id)).order("created_at");
   if (error) return sendError(res, error, 500);
   res.json({ messages: data || [] });
 });
 app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
-  if (!staffCan(req, "tickets")) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
+  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot reply to support tickets." });
   const message = clean(req.body?.message);
   if (!message || message.length > 4000) return res.status(400).json({ error: "Enter a message." });
   const { data: ticket } = await db.from("stc_tickets").select("id,client_user_id")
@@ -983,7 +1063,7 @@ app.post("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
 });
 
 app.delete("/api/admin/posts/:id", requireStaff, async (req, res) => {
-  if (!staffCan(req, "posts")) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
+  if (!(await staffCan(req, "posts", "delete"))) return res.status(403).json({ error: "Your staff role cannot remove announcements." });
   const id = Number(req.params.id);
   if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Invalid post ID." });
   const { data, error } = await db.from("stc_posts").delete().eq("id", id).select("id").maybeSingle();
@@ -1118,13 +1198,13 @@ app.post("/api/client/invoices/:id/bank-transfer", requireUser, async (req, res)
 });
 
 app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
-  if (!staffCan(req, "payments")) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
   const { data, error } = await db.from("stc_payment_settings").select("*").eq("id",1).maybeSingle();
   if (error) return sendError(res, error, 500);
   res.json({ settings: data || {} });
 });
 app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
-  if (!staffCan(req, "payments")) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
   const bank_name = clean(req.body?.bank_name);
   const account_name = clean(req.body?.account_name);
   const account_number = clean(req.body?.account_number);
@@ -1142,7 +1222,7 @@ app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
   res.json({ settings:data, message:"Bank transfer settings saved." });
 });
 app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
-  if (!staffCan(req, "payments")) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
   const { data: payment } = await db.from("stc_payments").select("receipt_key")
     .eq("id", Number(req.params.id)).maybeSingle();
   if (!payment?.receipt_key) return res.status(404).json({ error: "Receipt not found." });
@@ -1151,7 +1231,7 @@ app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
   res.json({ url:data.signedUrl, expires_in:300 });
 });
 app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
-  if (!staffCan(req, "payments")) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
   const id = Number(req.params.id);
   const decision = clean(req.body?.decision);
   const rejection_reason = clean(req.body?.rejection_reason);

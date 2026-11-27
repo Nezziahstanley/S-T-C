@@ -350,3 +350,32 @@
 .stc-staff-remove-button{border:1px solid #e5a4a4;background:transparent;color:#b42318;border-radius:8px;padding:7px 10px;font:inherit;font-size:.78rem;cursor:pointer}
 .stc-staff-remove-button:hover{background:#fff1f0}
 .stc-staff-remove-button:disabled{opacity:.55;cursor:wait}
+
+/* Configurable staff roles and permission centre */
+.stc-role-admin-grid{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(320px,1.2fr);gap:18px;margin-bottom:22px}
+.stc-role-create-form,.stc-role-list-panel,.stc-permission-editor{padding:18px;border:1px solid var(--line,#e1e7ed);border-radius:13px;background:var(--surface,#fff)}
+.stc-role-create-form{display:grid;gap:10px}
+.stc-role-create-form h4,.stc-role-list-panel h4,.stc-permission-editor h4{margin:0 0 8px;color:var(--text,#18324e);font-size:.94rem}
+.stc-role-create-form label{display:grid;gap:6px;color:var(--muted,#687386);font-size:.76rem;font-weight:700}
+.stc-role-create-form input,.stc-role-create-form textarea,.stc-permission-role-select select{width:100%;min-height:40px;padding:9px 11px;border:1px solid var(--line,#dce5ee);border-radius:8px;background:var(--surface,#fff);color:var(--text,#18324e)}
+.stc-role-list-panel{display:grid;align-content:start;gap:10px}
+.stc-role-list-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line,#e1e7ed)}
+.stc-role-list-item:last-child{border-bottom:0}
+.stc-role-list-item strong,.stc-role-list-item small,.stc-role-list-item p{display:block}
+.stc-role-list-item strong{font-size:.82rem;color:var(--text,#18324e)}
+.stc-role-list-item small,.stc-role-list-item p{margin:3px 0 0;color:var(--muted,#687386);font-size:.72rem}
+.stc-role-actions{display:flex;gap:6px;flex-shrink:0}
+.stc-role-actions button{padding:7px 9px;border:1px solid var(--line,#dce5ee);border-radius:7px;background:var(--surface,#fff);color:var(--text,#18324e);font-size:.72rem;font-weight:700;cursor:pointer}
+.stc-permission-editor{margin-top:18px}
+.stc-permission-editor .stc-admin-panel-heading{align-items:end;gap:16px}
+.stc-permission-editor .stc-admin-panel-heading p{margin:5px 0 0;color:var(--muted,#687386);font-size:.78rem;line-height:1.5}
+.stc-permission-role-select{display:grid;gap:5px;min-width:190px;color:var(--muted,#687386);font-size:.72rem;font-weight:700}
+.stc-permission-table{min-width:680px}
+.stc-permission-table th,.stc-permission-table td{padding:10px 12px;border-bottom:1px solid var(--line,#e1e7ed);text-align:left;font-size:.76rem}
+.stc-permission-table thead th{background:var(--surface-muted,#f5f7fa);text-transform:capitalize}
+.stc-permission-check{display:flex;align-items:center;gap:6px;text-transform:capitalize;cursor:pointer}
+.stc-permission-check input{width:16px;height:16px;accent-color:var(--accent,#087fa9)}
+.stc-permission-save-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:15px}
+.stc-permission-save-row .stc-account-status{margin:0}
+@media(max-width:760px){.stc-role-admin-grid{grid-template-columns:1fr}.stc-permission-editor .stc-admin-panel-heading{align-items:stretch;flex-direction:column}.stc-permission-role-select{width:100%}}
+@media(max-width:520px){.stc-role-list-item{align-items:flex-start;flex-direction:column}.stc-permission-save-row{align-items:stretch;flex-direction:column}}

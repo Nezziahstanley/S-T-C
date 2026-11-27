@@ -798,7 +798,7 @@ app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
   if (term.length < 2) return res.json({ accounts: [] });
   if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
   try {
-    const pattern = "%" + term.replace(/[\\%_]/g, "\\app.get("/api/admin/:resource", requireStaff, async (req, res) => {") + "%";
+    const pattern = "%" + term + "%";
     const result = await authDatabasePool.query(
       'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
       [pattern]

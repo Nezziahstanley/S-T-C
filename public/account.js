@@ -440,6 +440,7 @@
         event.preventDefault();
         const form=event.currentTarget,submit=$('button[type="submit"]',form);submit.disabled=true;submit.textContent="Creating…";
         const payload={...config.defaults};
+        if(resource==="profiles")payload.user_id=$("#stcProfileUserId",modal)?.value||"";
         if(resource==="profiles"&&!$("#stcProfileUserId",modal)?.value){const status=$("#stcAdminCreateStatus",modal);status.textContent="Search for and select an existing STC account first.";status.classList.add("is-error");submit.disabled=false;submit.textContent="Create record";return;}
         for(const key of config.fields){
           const input=form.elements.namedItem(key);if(!input)continue;

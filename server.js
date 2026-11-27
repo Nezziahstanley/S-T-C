@@ -992,8 +992,9 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
   res.json({ item: data });
 });
-app.delete("/api/admin/:resource/:id", requireStaff, async (req,res) => {
+app.delete("/api/admin/:resource/:id", requireStaff, async (req,res,next) => {
   const resource=req.params.resource, table=adminTables[resource];
+  if(resource==="staff") return next();
   const deletable=new Set(["projects","quotes","invoices","tickets","services","posts","portfolio","enrollments","certificates","awards","media"]);
   if(!table || !deletable.has(resource))return res.status(403).json({error:"Records in this section cannot be deleted from the dashboard."});
   if(!(await staffCan(req,resource,"delete")))return res.status(403).json({error:"Your role does not have delete permission for this section."});
@@ -1045,7 +1046,7 @@ app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
   });
 });
 app.get("/api/admin/tickets/:id/messages", requireStaff, async (req, res) => {
-  if (!(await staffCan(req, "tickets", "update"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
+  if (!(await staffCan(req, "tickets", "read"))) return res.status(403).json({ error: "Your staff role cannot access support tickets." });
   const { data, error } = await db.from("stc_messages").select("*")
     .eq("ticket_id", Number(req.params.id)).order("created_at");
   if (error) return sendError(res, error, 500);

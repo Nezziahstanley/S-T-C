@@ -286,3 +286,15 @@
  .stc-admin-side-nav{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){.stc-admin-sidebar,.stc-admin-chart{transition:none}}
+
+
+/* Focused Super Admin landing dashboard */
+.stc-admin-welcome{margin-bottom:22px}
+.stc-admin-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 26px}
+.stc-admin-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}
+.stc-admin-chart{min-width:0;height:100%}
+.stc-admin-chart-visual{min-height:210px}
+.stc-admin-customize-row{margin:0 0 12px}
+.stc-admin-layout-controls{margin:0 0 16px}
+@media(max-width:900px){.stc-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:1fr}.stc-admin-metrics{gap:9px}.stc-admin-welcome{align-items:flex-start;gap:12px}}

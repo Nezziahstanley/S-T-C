@@ -417,7 +417,7 @@
       const requestedResource = location.hash.split("/")[2] || "";
       let allowedResources = role === "super_admin" ? Object.keys(resourceNames) : (staffResources[role] || []);
       if (role !== "super_admin" && role !== "student" && role !== "client") {
-        try { const ownPermissions=await request("/api/staff/my-permissions"); allowedResources=ownPermissions.resources||[]; } catch {}
+        try { const ownPermissions=await request("/api/staff/my-permissions"); allowedResources=ownPermissions.resources||[]; if(ownPermissions.role_label)roleNames[role]=ownPermissions.role_label; } catch {}
       }
       if (requestedResource && allowedResources.includes(requestedResource)) {
         const result = await request("/api/admin/"+encodeURIComponent(requestedResource));

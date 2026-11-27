@@ -505,7 +505,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     "training enrolment count","issued certificate count","issued award count","profile count","client count",
     "active staff count","service count","published post count","portfolio count","media count",
     "recent enquiries","recent projects","recent support tickets","project status data","payment summary data",
-    "enrolment status data","enquiry status data","recent audit activity","administrator notifications"
+    "enrolment status data","enquiry status data","recent audit activity","administrator notifications","support ticket status data"
   ];
   const results = await Promise.all([
     db.from("stc_enquiries").select("id", { count:"exact", head:true }),
@@ -532,7 +532,8 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
     db.from("stc_training_enrollments").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_enquiries").select("status,created_at").order("created_at", { ascending:false }).limit(1000),
     db.from("stc_audit_logs").select("actor,action,entity,entity_id,created_at,details").order("created_at", { ascending:false }).limit(12),
-    db.from("stc_notifications").select("*").eq("user_id",req.user.id).order("created_at", { ascending:false }).limit(8)
+    db.from("stc_notifications").select("*").eq("user_id",req.user.id).order("created_at", { ascending:false }).limit(8),
+    db.from("stc_tickets").select("status,created_at").order("created_at", { ascending:false }).limit(1000)
   ]);
   const failedIndex = results.findIndex(item => item.error);
   if (failedIndex !== -1) {
@@ -569,7 +570,7 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
   const monthlyActivity = {};
   const monthCutoff = new Date();
   monthCutoff.setMonth(monthCutoff.getMonth() - 5);
-  for (const rows of [results[19].data,results[20].data,results[21].data,results[22].data]) {
+  for (const rows of [results[19].data,results[20].data,results[21].data,results[22].data,results[25].data]) {
     for (const row of rows || []) {
       const date = new Date(row.created_at);
       if (!Number.isFinite(date.getTime()) || date < monthCutoff) continue;
@@ -613,6 +614,8 @@ app.get("/api/admin/dashboard", requireStaff, async (req, res) => {
       payment_status:groupByStatus(results[20].data),
       enrolment_status:groupByStatus(results[21].data),
       enquiry_status:groupByStatus(results[22].data),
+      ticket_status:groupByStatus(results[25].data),
+      invoice_status:groupByStatus(allInvoices),
       revenue_by_currency:revenueByCurrency,
       outstanding_by_currency:outstandingByCurrency,
       outstanding_invoice_count:outstandingInvoiceCount,

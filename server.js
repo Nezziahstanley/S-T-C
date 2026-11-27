@@ -206,6 +206,7 @@ async function ensureStaffPermissionSchema() {
       rows.push([roleKey,resource,canCreate,canRead,canUpdate,canDelete]);
     }
   }
+  await authDatabasePool.query("UPDATE public.stc_role_permissions SET can_create=TRUE, can_read=TRUE, can_update=TRUE, can_delete=TRUE, updated_at=NOW() WHERE role_key='manager' AND resource_key='profiles'");
   if (rows.length) {
     const values = [];
     const params = [];

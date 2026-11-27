@@ -297,7 +297,7 @@
       body.innerHTML=visible.length?visible.map(item=>{
         const cells=keys.slice(0,7).map(key=>'<td>'+esc(typeof item[key]==="object"?JSON.stringify(item[key]):item[key]??"—")+'</td>').join("");
         const id=item.id??item.user_id??"";
-        return '<tr>'+cells+'<td>'+(fields.length&&id?'<button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>':'—')+'</td></tr>';
+        return '<tr>'+cells+'<td>'+(fields.length&&id?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>'+(resource==="staff"?'<button type="button" class="stc-staff-remove-button" data-remove-id="'+esc(id)+'">Remove access</button>':'')+'</div>':'—')+'</td></tr>';
       }).join(""):'<tr><td colspan="'+(Math.min(keys.length,7)+1)+'" class="stc-dash-empty">No matching records.</td></tr>';
       pageLabel.textContent=filtered.length?("Showing "+(start+1)+"–"+Math.min(start+pageSize,filtered.length)+" of "+filtered.length):"0 records";
       $("#stcResourcePrev",rootEl).disabled=page===0;
@@ -308,6 +308,22 @@
     statusFilter?.addEventListener("change",applyFilters);
     $("#stcResourcePrev",rootEl)?.addEventListener("click",()=>{page=Math.max(0,page-1);renderRows();});
     $("#stcResourceNext",rootEl)?.addEventListener("click",()=>{if((page+1)*pageSize<filtered.length)page++;renderRows();});
+    body?.addEventListener("click", async event => {
+      const removeButton = event.target.closest("[data-remove-id]");
+      if (!removeButton || resource !== "staff") return;
+      const userId = removeButton.dataset.removeId;
+      const staff = items.find(item => String(item.user_id) === userId);
+      const displayName = staff?.full_name || "this staff member";
+      if (!window.confirm("Remove staff access for " + displayName + "? Their STC account and profile will remain; only their staff role will be removed.")) return;
+      removeButton.disabled = true;
+      try {
+        await request("/api/admin/staff/" + encodeURIComponent(userId), { method: "DELETE" });
+        await renderDashboard();
+      } catch (error) {
+        window.alert(error.message);
+        removeButton.disabled = false;
+      }
+    });
     body?.addEventListener("click",event=>{
       const button=event.target.closest("[data-edit-id]");
       if(!button)return;

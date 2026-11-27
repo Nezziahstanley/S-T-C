@@ -317,3 +317,28 @@
 .stc-admin-period-filter select:focus-visible{outline:3px solid rgba(8,127,169,.3);outline-offset:2px}
 @media(max-width:680px){.stc-admin-attention{padding:15px}.stc-admin-attention-list{grid-template-columns:1fr}.stc-admin-dashboard-tools{width:100%;justify-content:flex-start}.stc-admin-customize-row{gap:12px}}
 @media(prefers-reduced-motion:reduce){.stc-admin-attention-list a{transition:none}}
+
+
+/* Overview finance and audit activity panels */
+.stc-admin-finance-panel,.stc-admin-activity-panel{margin:0 0 22px;padding:19px 21px;border:1px solid #e2eaf0;border-radius:15px;background:#fff;box-shadow:0 5px 20px rgba(19,53,79,.035)}
+.stc-admin-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.stc-admin-panel-heading h3{margin:3px 0 0;color:#18344f;font-size:1rem;letter-spacing:-.02em}
+.stc-admin-finance-panel .stc-admin-panel-heading a{color:#087f96;text-decoration:none;font-size:.72rem;font-weight:800}
+.stc-admin-finance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.stc-admin-finance-block{min-width:0;padding:15px;border:1px solid #edf1f4;border-radius:11px;background:#fbfdfe}
+.stc-admin-finance-block>span{display:block;color:#61758a;font-size:.72rem;font-weight:750}
+.stc-admin-finance-block ul{display:grid;gap:8px;margin:12px 0 0;padding:0;list-style:none}
+.stc-admin-finance-block li{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid #e9eff3}
+.stc-admin-finance-block li strong{color:#18344f;font-size:1rem;overflow-wrap:anywhere}
+.stc-admin-finance-block li small,.stc-admin-finance-block p{color:#8290a1;font-size:.68rem}
+.stc-admin-finance-block p{margin:12px 0 0}
+.stc-admin-finance-count{display:block;margin-top:12px;color:#8290a1;font-size:.68rem}
+.stc-admin-activity-panel .stc-admin-panel-heading>span{color:#8290a1;font-size:.68rem}
+.stc-admin-activity-list{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.stc-admin-activity-list li{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #edf1f4}
+.stc-admin-activity-dot{width:8px;height:8px;border-radius:50%;background:#21a6b4}
+.stc-admin-activity-list li>div{display:grid;gap:3px;min-width:0}
+.stc-admin-activity-list li strong{color:#27445e;font-size:.75rem;text-transform:capitalize}
+.stc-admin-activity-list li small,.stc-admin-activity-list time{color:#8290a1;font-size:.66rem}
+.stc-admin-activity-list time{text-align:right;white-space:nowrap}
+@media(max-width:680px){.stc-admin-finance-grid{grid-template-columns:1fr}.stc-admin-finance-panel,.stc-admin-activity-panel{padding:15px}.stc-admin-activity-list li{grid-template-columns:9px minmax(0,1fr)}.stc-admin-activity-list time{grid-column:2;text-align:left}}

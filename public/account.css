@@ -389,3 +389,13 @@
 .stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-admin-resource-tools select{flex:0 1 190px;min-width:150px}
 @media(max-width:760px){.stc-profile-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.stc-profile-summary{grid-template-columns:1fr}}
+
+/* Full User Profiles management */
+.stc-profile-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stc-profile-detail-grid>div{padding:12px;border:1px solid #e4edf3;border-radius:10px;background:#f8fbfd;min-width:0}
+.stc-profile-detail-grid small{display:block;margin-bottom:5px;color:#718398;font-size:.67rem;font-weight:700}
+.stc-profile-detail-grid strong{display:block;color:#18344f;font-size:.82rem;overflow-wrap:anywhere}
+#stcProfileAccountResults{max-height:220px;overflow:auto}
+#stcProfileAccountSelected{display:block;margin-top:5px}
+.stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-dash-table-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+@media(max-width:560px){.stc-profile-detail-grid{grid-template-columns:1fr}}

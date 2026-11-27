@@ -185,7 +185,7 @@
 
   const adminChartPalette = ["#087fa9","#21a6b4","#67c6bb","#f0ad4e","#7586d8","#e17c91","#4d9c83","#9b8bd3"];
   function adminChartPanel(title, values, key = "chart", defaultType = "bar", suffix = "", allowLine = false) {
-    const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>a[0].localeCompare(b[0]));
+    const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>key==="monthly"?(Date.parse(a[0])-Date.parse(b[0])||a[0].localeCompare(b[0])):a[0].localeCompare(b[0]));
     const preference = (()=>{try{return JSON.parse(localStorage.getItem("stcAdminDashboardPrefs")||"{}")}catch{return {}}})();
     const allowedTypes = allowLine ? ["bar","donut","line"] : ["bar","donut"];
     const type = allowedTypes.includes(preference.types?.[key])?preference.types[key]:defaultType;
@@ -446,10 +446,10 @@
           const cards = priorityMetrics.map(key=>metric(metricLabels[key],metrics[key] ?? 0)).join("");
           const analytics = overview?.analytics || {};
           const attentionSignals = [
-            {label:"Enquiries awaiting response",resource:"enquiries",values:analytics.enquiry_status,match:/new|pending|unanswered|open/},
-            {label:"Projects needing attention",resource:"projects",values:analytics.project_status,match:/blocked|delayed|on_hold|at_risk/},
-            {label:"Invoices awaiting payment",resource:"invoices",values:analytics.payment_status,match:/pending|overdue|unpaid/},
-            {label:"Open support tickets",resource:"tickets",values:analytics.ticket_status,match:/open|pending|unresolved/}
+            {label:"Enquiries awaiting response",resource:"enquiries",values:analytics.enquiry_status,match:/new|pending|unanswered|open/i},
+            {label:"Projects needing attention",resource:"projects",values:analytics.project_status,match:/blocked|delayed|on_hold|at_risk/i},
+            {label:"Invoices awaiting payment",resource:"invoices",values:analytics.payment_status,match:/pending|overdue|unpaid/i},
+            {label:"Open support tickets",resource:"tickets",values:analytics.ticket_status,match:/open|pending|unresolved/i}
           ];
           const attentionRows = attentionSignals.map(signal=>{
             const entries=Object.entries(signal.values||{});

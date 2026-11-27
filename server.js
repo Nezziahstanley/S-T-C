@@ -121,7 +121,7 @@ async function requireStaff(req, res, next) {
   next();
 }
 
-const permissionResources = Object.keys(adminTables).filter(resource => resource !== "staff");
+const permissionResources = ["profiles","students","clients","enrollments","certificates","awards","enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media"];
 async function staffCan(req, resource, action = "read") {
   if (req.staffRole === "super_admin") return true;
   if (!["create", "read", "update", "delete"].includes(action)) return false;
@@ -748,7 +748,7 @@ const adminTables = {
   certificates: "stc_certificates", awards: "stc_awards"
 };
 app.get("/api/admin/students", requireStaff, async (req,res) => {
-  if (!(await staffCan(req,"enrollments","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
+  if (!(await staffCan(req,"students","read"))) return res.status(403).json({error:"Your staff role cannot access student records."});
   const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,institution,department,study_level,student_number").order("full_name").limit(300);
   if(error)return sendError(res,error,500);
   const ids=(profiles||[]).map(p=>p.user_id);
@@ -759,7 +759,7 @@ app.get("/api/admin/students", requireStaff, async (req,res) => {
   res.json({items:(profiles||[]).map(p=>({...p,training_count:(enrollments||[]).filter(e=>e.user_id===p.user_id).length,completed_projects_count:(projects||[]).filter(x=>x.client_user_id===p.user_id).length}))});
 });
 app.get("/api/admin/clients", requireStaff, async (req,res) => {
-  if (!(await staffCan(req,"profiles","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
+  if (!(await staffCan(req,"clients","read"))) return res.status(403).json({error:"Your staff role cannot access client records."});
   const {data:profiles,error}=await db.from("stc_profiles").select("user_id,full_name,account_type,company,phone").eq("account_type","client").order("full_name").limit(300);
   if(error)return sendError(res,error,500);
   const ids=(profiles||[]).map(p=>p.user_id);

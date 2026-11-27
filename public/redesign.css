@@ -169,3 +169,128 @@ button,.btn{transition:all .22s ease}
 .stc-academy-copy li:before{content:"✓";display:inline-grid;place-items:center;width:23px;height:23px;margin-right:10px;border-radius:50%;background:#e2f9fd;color:#009fca;font-weight:900}
 @media(max-width:780px){.stc-announcement{margin-top:82px!important}.stc-work-grid{grid-template-columns:1fr 1fr}.stc-work-large{grid-row:auto;grid-column:span 2;min-height:280px}.stc-work-card{min-height:220px}.stc-academy-band{grid-template-columns:1fr}.stc-academy-image{min-height:300px}}
 @media(max-width:480px){.stc-work-grid{grid-template-columns:1fr}.stc-work-large{grid-column:auto;min-height:240px}.stc-work-card{min-height:220px}.stc-section-link{text-align:left}}
+
+
+/* Public-page alignment and layout corrections */
+.page-view{padding:24px 0 0!important;background:#f4f7fb!important;min-height:70vh!important}
+.stc-route-nav{display:none!important}
+.page-view .route-hero{width:100%;margin:0!important;padding:clamp(54px,7vw,88px) max(5vw,22px) 58px!important;background:radial-gradient(ellipse at 82% 24%,rgba(0,200,239,.13),transparent 34%),linear-gradient(120deg,#edf4fa,#f8fafc)!important;border-bottom:1px solid #dfe8f0!important}
+.page-view .route-hero .eyebrow{color:#009fc8!important}
+.page-view .route-hero h1{max-width:1180px!important;margin:16px auto!important;color:#10263d!important;font:800 clamp(38px,5.5vw,66px)/1.04 Manrope,Inter,sans-serif!important;letter-spacing:-.06em!important}
+.page-view .route-hero>p{max-width:1180px!important;margin:0 auto!important;color:#63758a!important;font-size:clamp(15px,1.3vw,18px)!important;line-height:1.8!important}
+.page-view .route-section{width:100%!important;margin:0!important;padding:clamp(42px,5.5vw,76px) max(5vw,22px)!important;background:#fff!important}
+.page-view .route-section.soft-section{background:#f1f5f9!important}
+.page-view .route-section>*{max-width:1280px}
+.page-view .route-cta{max-width:1280px!important;margin:30px auto!important;padding:clamp(30px,5vw,60px)!important;border-radius:24px!important;background:radial-gradient(circle at 85% 10%,rgba(0,200,239,.2),transparent 30%),linear-gradient(115deg,#071426,#12395a)!important;color:#fff!important}
+.page-view .route-cta h2,.page-view .route-cta p{color:#fff!important}
+.page-view .route-cta p{max-width:650px;line-height:1.8;color:#c4d2df!important}
+.page-view .route-cta .btn{flex:0 0 auto}
+.page-view .stc-services-intro,.page-view .stc-portfolio-intro{max-width:1280px!important;margin:0 auto 32px!important;gap:clamp(24px,5vw,70px)!important}
+.page-view .stc-services-intro h2,.page-view .stc-services-process-heading h2,.page-view .stc-services-why h2,.page-view .stc-services-faq h2{font:800 clamp(32px,4vw,50px)/1.08 Manrope,Inter,sans-serif!important;letter-spacing:-.05em!important;color:#10263d!important}
+.page-view .stc-services-intro p,.page-view .stc-services-process-heading p,.page-view .stc-services-why p{color:#64778b!important;line-height:1.85!important}
+.page-view .stc-services-toolbar{max-width:1280px!important;margin:0 auto 25px!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:16px!important;flex-wrap:wrap!important}
+.page-view .stc-service-filters,.page-view .portfolio-filters{display:flex!important;gap:8px!important;flex-wrap:wrap!important}
+.page-view .filter-chip{border:1px solid #d8e3ed!important;border-radius:999px!important;background:#fff!important;color:#4c6075!important;padding:10px 15px!important;font-size:12px!important;font-weight:700!important}
+.page-view .filter-chip.active{background:linear-gradient(110deg,#00bfe8,#3987ff)!important;color:#071a2d!important;border-color:transparent!important}
+.page-view .stc-service-search{width:min(100%,300px)!important;display:flex!important;align-items:center!important;gap:10px!important;padding:10px 14px!important;border:1px solid #d7e2ec!important;border-radius:12px!important;background:#fff!important}
+.page-view .stc-services-grid{max-width:1280px!important;margin:0 auto!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:20px!important;align-items:stretch!important}
+.page-view .stc-service-card{height:100%!important;display:flex!important;flex-direction:column!important}
+.page-view .stc-service-card-body{display:flex!important;flex:1!important;flex-direction:column!important}
+.page-view .stc-service-card-body>p{min-height:4.8em}
+.page-view .stc-service-link{margin-top:auto!important;padding-top:18px!important}
+.page-view .stc-services-empty{max-width:1280px!important;margin:22px auto!important;color:#63758a!important}
+.page-view .stc-services-process-heading{max-width:1280px!important;margin:0 auto 30px!important}
+.page-view .stc-services-process-grid{max-width:1280px!important;margin:0 auto!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important}
+.page-view .stc-services-process-grid article{border:1px solid #e0e8f0!important;border-radius:18px!important;background:#fff!important;padding:25px!important}
+.page-view .stc-services-process-grid article h3{color:#142d47!important}
+.page-view .stc-services-process-grid article p{color:#66798d!important;line-height:1.75!important}
+.page-view .stc-services-why,.page-view .stc-services-faq{max-width:1280px!important;margin:0 auto!important}
+.page-view .stc-services-benefits{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important}
+.page-view .stc-services-benefits>div{display:flex!important;gap:13px!important;padding:18px!important;border:1px solid #e1e9f0!important;border-radius:15px!important;background:#fff!important}
+.page-view .stc-services-benefits strong{color:#183550!important}
+.page-view .stc-services-benefits small{color:#718196!important;line-height:1.6!important}
+.page-view .stc-services-faq-list details{padding:18px 0!important;border-bottom:1px solid #dce5ed!important}
+.page-view .stc-services-faq-list summary{color:#19334d!important;font-weight:750!important;cursor:pointer}
+.page-view .stc-services-faq-list details p{color:#66798d!important;line-height:1.75!important}
+.page-view .portfolio-filters{max-width:1280px!important;margin:0 auto 18px!important;justify-content:flex-start!important}
+.page-view .stc-portfolio-search{max-width:1280px!important;width:min(100%,360px)!important;margin:0 auto 25px!important;border-radius:12px!important}
+.page-view .portfolio-showcase{max-width:1280px!important;margin:0 auto!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important}
+.page-view .portfolio-tile{min-width:0!important;min-height:270px!important;width:100%!important}
+.page-view .portfolio-tile.hidden{display:none!important}
+.page-view .portfolio-modal{z-index:1200!important}
+.page-view .stc-training-hero{max-width:1280px!important;margin:0 auto 42px!important;grid-template-columns:1fr 1fr!important;gap:clamp(24px,4vw,55px)!important;padding:clamp(18px,3vw,30px)!important}
+.page-view .stc-training-hero img{height:340px!important}
+.page-view .training-feature{max-width:1280px!important;margin:0 auto 32px!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:34px!important;align-items:center!important}
+.page-view .training-feature img{width:100%!important;height:330px!important}
+.page-view .stc-training-benefit-grid{max-width:1280px!important;margin:30px auto!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important}
+.page-view .stc-placement-callout{max-width:1280px!important;margin:34px auto!important;display:grid!important;grid-template-columns:1.4fr .8fr!important;gap:25px!important;align-items:center!important}
+.page-view .stc-placement-points{display:grid!important;gap:12px!important}
+.page-view .course-grid{max-width:1280px!important;margin:32px auto!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:15px!important}
+.page-view .course-card{display:flex!important;align-items:flex-start!important;gap:16px!important;min-height:130px!important}
+.page-view .route-form{width:min(100% - 44px,900px)!important;margin:28px auto 70px!important}
+.page-view .route-form h2{color:#142c45!important}
+.page-view .route-form p,.page-view .form-note{color:#6a7c90!important;line-height:1.7!important}
+.page-view .route-form fieldset{border:1px solid #dce5ed!important;border-radius:12px!important;padding:15px!important}
+.page-view .route-form legend{padding:0 6px!important;color:#243c55!important;font-weight:700!important}
+.page-view .route-form .radio-option{display:inline-flex!important;align-items:center!important;gap:8px!important;margin:7px 16px 7px 0!important}
+.page-view .graduate-gallery-grid{max-width:1280px!important;margin:0 auto!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important}
+.page-view .graduate-photo-card{margin:0!important;background:#fff!important;border:1px solid #e1e9f0!important}
+.page-view .graduate-photo-card img{display:block!important;width:100%!important;aspect-ratio:4/3!important;object-fit:cover!important}
+.page-view .graduate-photo-card figcaption{display:grid!important;gap:5px!important;padding:16px!important;color:#17334e!important}
+.page-view .graduate-photo-card figcaption span{color:#718196!important;font-size:13px!important;line-height:1.6!important}
+.page-view .stc-contact-intro{max-width:1280px!important;margin:0 auto 30px!important;grid-template-columns:1fr 1fr!important;gap:clamp(25px,5vw,70px)!important}
+.page-view .contact-layout{max-width:1280px!important;margin:0 auto!important;grid-template-columns:.85fr 1.15fr!important;gap:25px!important}
+.page-view .contact-details{display:grid!important;align-content:start!important;gap:12px!important}
+.page-view .contact-info-card{min-height:76px!important;display:flex!important;align-items:center!important;gap:14px!important}
+.page-view .contact-info-card b{overflow-wrap:anywhere!important}
+.page-view .stc-map-heading,.page-view .stc-map-footer{max-width:1280px!important;margin:0 auto!important}
+.page-view .stc-map-frame-wrap{max-width:1280px!important;margin:22px auto!important}
+.page-view .service-detail-hero{padding:clamp(55px,7vw,90px) max(5vw,22px)!important;background:linear-gradient(120deg,#071426,#12395a)!important;color:#fff!important}
+.page-view .service-detail-hero h1,.page-view .service-detail-hero h2,.page-view .service-detail-hero p{max-width:1280px!important;color:#fff!important}
+.page-view .service-detail-content,.page-view .service-detail-body{max-width:1280px!important;margin:0 auto!important;padding:45px 24px!important}
+.stc-capability-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:18px!important}
+.stc-capability-grid article{display:grid!important;gap:8px!important;border:0!important;text-align:left!important}
+.stc-capability-grid article b{font:800 clamp(16px,1.5vw,20px) Manrope,Inter,sans-serif!important;white-space:normal!important}
+.stc-capability-grid article small{line-height:1.6!important}
+.stc-approach-section .testimonials-grid article{min-height:210px!important}
+.stc-approach-number{display:inline-grid!important;place-items:center!important;width:38px!important;height:38px!important;border-radius:11px!important;background:#e5f9fd!important;color:#008fb8!important;font-weight:850!important}
+.stc-approach-section .testimonials-grid h3{margin:16px 0 8px!important;color:#16324d!important;font:800 19px Manrope,Inter,sans-serif!important}
+.stc-approach-section .testimonials-grid p{color:#687b8f!important;line-height:1.75!important}
+@media(max-width:1000px){
+ .page-view .stc-services-grid,.page-view .portfolio-showcase,.page-view .graduate-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .page-view .stc-services-process-grid{grid-template-columns:1fr 1fr!important}
+ .page-view .stc-services-process-grid article:last-child{grid-column:span 2}
+ .page-view .stc-placement-callout{grid-template-columns:1fr!important}
+}
+@media(max-width:780px){
+ .page-view{padding-top:14px!important}
+ .page-view .route-hero{padding:44px 20px 38px!important}
+ .page-view .route-hero h1{font-size:clamp(36px,9vw,50px)!important}
+ .page-view .route-section{padding:38px 20px 52px!important}
+ .page-view .stc-services-intro,.page-view .stc-portfolio-intro,.page-view .stc-contact-intro,.page-view .stc-training-hero,.page-view .training-feature,.page-view .contact-layout{grid-template-columns:1fr!important}
+ .page-view .stc-services-toolbar{align-items:stretch!important}
+ .page-view .stc-service-filters{overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px!important}
+ .page-view .stc-service-filters .filter-chip{white-space:nowrap!important}
+ .page-view .stc-service-search{width:100%!important}
+ .page-view .stc-services-grid,.page-view .portfolio-showcase,.page-view .graduate-gallery-grid{grid-template-columns:1fr 1fr!important;gap:13px!important}
+ .page-view .stc-service-image{height:165px!important}
+ .page-view .stc-service-card-body{padding:17px!important}
+ .page-view .stc-services-process-grid,.page-view .stc-training-benefit-grid{grid-template-columns:1fr!important}
+ .page-view .stc-services-process-grid article:last-child{grid-column:auto}
+ .page-view .stc-services-benefits{grid-template-columns:1fr!important}
+ .page-view .stc-training-hero img,.page-view .training-feature img{height:245px!important}
+ .page-view .stc-placement-callout{padding:24px!important}
+ .page-view .course-grid{grid-template-columns:1fr!important}
+ .page-view .route-form{width:calc(100% - 36px)!important;padding:22px!important}
+ .page-view .contact-layout{padding-left:0!important;padding-right:0!important}
+ .page-view .stc-map-frame-wrap iframe{height:300px!important}
+ .stc-capability-grid{grid-template-columns:1fr 1fr!important}
+}
+@media(max-width:480px){
+ .page-view .stc-services-grid,.page-view .portfolio-showcase,.page-view .graduate-gallery-grid{grid-template-columns:1fr!important}
+ .page-view .portfolio-tile{min-height:235px!important}
+ .page-view .stc-service-image{height:190px!important}
+ .page-view .stc-map-footer{display:grid!important;gap:14px!important}
+ .stc-capability-grid{grid-template-columns:1fr 1fr!important;gap:20px 12px!important}
+ .stc-capability-grid article b{font-size:15px!important}
+}

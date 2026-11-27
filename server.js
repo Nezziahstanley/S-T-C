@@ -918,6 +918,18 @@ app.patch("/api/admin/:resource/:id", requireStaff, async (req, res) => {
   await audit(req.user, "update", resource, req.params.id, { fields: Object.keys(payload) });
   res.json({ item: data });
 });
+app.delete("/api/admin/staff/:id", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can remove staff access." });
+  const userId = clean(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return res.status(400).json({ error: "Invalid staff account." });
+  if (userId === req.user.id) return res.status(409).json({ error: "You cannot remove your own administrator access." });
+  const { data, error } = await db.from("stc_staff_roles").delete().eq("user_id", userId).select("user_id,role").maybeSingle();
+  if (error) return sendError(res, error, 400);
+  if (!data) return res.status(404).json({ error: "Staff record not found." });
+  await audit(req.user, "remove_staff_access", "staff", userId, { previous_role: data.role });
+  return res.json({ message: "Staff access removed. The STC account itself was not deleted." });
+});
+
 app.post("/api/admin/media/upload", requireStaff, async (req, res) => {
   if (!staffCan(req, "media")) return res.status(403).json({ error: "Your staff role cannot upload media." });
   const title = clean(req.body?.title);

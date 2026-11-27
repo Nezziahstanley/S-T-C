@@ -442,7 +442,7 @@
           ]).then(([permissionData, activityData]) => {
             staffRoleDefinitions = permissionData.roles || [];
             const roleSelect=$("#stcStaffRoleSelect");
-            if(roleSelect) roleSelect.innerHTML=staffRoleDefinitions.map(r=>'<option value="'+esc(r.role_key)+'">'+esc(r.label)+'</option>').join("");
+            if(roleSelect) roleSelect.innerHTML='<option value="">Choose a role</option>'+staffRoleDefinitions.map(r=>'<option value="'+esc(r.role_key)+'">'+esc(r.label)+'</option>').join("");
             const permissionRoot=$("#stcStaffPermissions");
             const labels={profiles:"User profiles",students:"Student management",clients:"Client management",enrollments:"Training enrolments",certificates:"Certificates",awards:"Awards",enquiries:"Enquiries",projects:"Projects",quotes:"Quotes",invoices:"Invoices",payments:"Payments",tickets:"Support tickets",services:"Services",posts:"Posts & announcements",portfolio:"Portfolio",media:"Media library"};
             if(permissionRoot){

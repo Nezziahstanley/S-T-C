@@ -279,7 +279,18 @@
   function bindAdminResource(items,resource) {
     const rootEl=root(), fields=adminEditableFields[resource]||[];
     const search=$("#stcResourceSearch",rootEl), body=$("#stcResourceRows",rootEl), pageLabel=$("#stcResourcePage",rootEl);
+    const roleFilter=$("#stcStaffRoleFilter",rootEl), statusFilter=$("#stcStaffStatusFilter",rootEl);
     const pageSize=10; let page=0, filtered=items.slice();
+    const applyFilters=()=>{
+      const q=(search?.value||"").trim().toLowerCase(), role=roleFilter?.value||"", status=statusFilter?.value||"";
+      filtered=items.filter(item=>{
+        const matchesSearch=!q||Object.values(item).some(v=>String(v??"").toLowerCase().includes(q));
+        const matchesRole=!role||item.role===role;
+        const matchesStatus=!status||(status==="active"?item.is_active===true:item.is_active===false);
+        return matchesSearch&&matchesRole&&matchesStatus;
+      });
+      page=0;renderRows();
+    };
     const keys=resource==="staff"?["full_name","phone","department","role","is_active","user_id"]:Object.keys(items[0]||{}).filter(k=>!["raw","content"].includes(k));
     const renderRows=()=>{
       const start=page*pageSize, visible=filtered.slice(start,start+pageSize);
@@ -292,11 +303,9 @@
       $("#stcResourcePrev",rootEl).disabled=page===0;
       $("#stcResourceNext",rootEl).disabled=(page+1)*pageSize>=filtered.length;
     };
-    search?.addEventListener("input",()=>{
-      const q=search.value.trim().toLowerCase();
-      filtered=items.filter(item=>Object.values(item).some(v=>String(v??"").toLowerCase().includes(q)));
-      page=0;renderRows();
-    });
+    search?.addEventListener("input",applyFilters);
+    roleFilter?.addEventListener("change",applyFilters);
+    statusFilter?.addEventListener("change",applyFilters);
     $("#stcResourcePrev",rootEl)?.addEventListener("click",()=>{page=Math.max(0,page-1);renderRows();});
     $("#stcResourceNext",rootEl)?.addEventListener("click",()=>{if((page+1)*pageSize<filtered.length)page++;renderRows();});
     body?.addEventListener("click",event=>{
@@ -396,8 +405,8 @@
         const keys = requestedResource==="staff"?["full_name","phone","department","role","is_active","user_id"]:Object.keys(items[0] || {}).filter(k=>!["raw","content"].includes(k));
         const heading = resourceNames[requestedResource] || requestedResource;
         const columns = keys.slice(0,7).map(key=>'<th>'+esc(key.replaceAll("_"," "))+'</th>').join("");
-        const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records"><span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
-        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Enter the UUID of an existing STC account. Staff must already have registered for an STC account.</p><label>Account user ID<input name="user_id" required placeholder="Existing STC account UUID"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
+        const resourceTable = '<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded (maximum 100)</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="Search records…" aria-label="Search records">'+(requestedResource==="staff"?'<select id="stcStaffRoleFilter" aria-label="Filter by staff role"><option value="">All roles</option><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select><select id="stcStaffStatusFilter" aria-label="Filter by account status"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Suspended</option></select>':'')+'<span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
+        const staffAssignment = requestedResource === "staff" && role === "super_admin" ? '<section class="stc-staff-summary">'+metric("Total staff",items.length)+metric("Active staff",items.filter(x=>x.is_active===true).length)+metric("Suspended staff",items.filter(x=>x.is_active===false).length)+metric("Assigned roles",new Set(items.map(x=>x.role)).size)+'</section><form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Only existing STC accounts can be assigned. Enter the account user ID and choose the appropriate role. The account will be activated when the role is assigned.</p><label>Account user ID<input name="user_id" required placeholder="Paste existing STC account UUID" autocomplete="off"></label><label>Staff role<select name="role" required><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>' : "";
         showAccount('<div class="stc-dashboard"><header class="stc-dash-top"><a class="stc-auth-brand" href="#home"><img src="/assets/logo.png" alt="STC"><span>STANLEY TECH CONNECT</span></a><div><span>'+esc(roleNames[role]||role)+'</span><button id="stcLogout" type="button">Sign out</button></div></header>'+adminLayoutStart(role,requestedResource)+'<main class="stc-dash-main"><a class="stc-dash-back" href="#dashboard/'+(role==="super_admin"?"admin":"staff")+'">← Back to dashboard</a><div class="stc-dash-welcome"><div><span class="stc-auth-kicker">WORKSPACE MODULE</span><h2>'+esc(heading)+'</h2><p>Records available to your assigned role.</p></div><span class="stc-dash-role">'+esc(roleNames[role]||role)+'</span></div>'+staffAssignment+resourceTable+'</main>'+adminLayoutEnd(role)+'</div>');
         if(role==="super_admin") bindAdminDashboard();
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});

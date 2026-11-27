@@ -256,7 +256,8 @@
   };
   function resourceEditorField(key,value) {
     const label=esc(key.replaceAll("_"," "));
-    if(key==="role") return '<label class="stc-field">'+label+'<select name="role"><option value="manager" '+(value==="manager"?"selected":"")+ '>Operations Manager</option><option value="project_manager" '+(value==="project_manager"?"selected":"")+ '>Project Manager</option><option value="finance" '+(value==="finance"?"selected":"")+ '>Finance Officer</option><option value="support" '+(value==="support"?"selected":"")+ '>Customer Support</option><option value="content_editor" '+(value==="content_editor"?"selected":"")+ '>Content Editor</option></select></label>';\n    if(typeof value==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(value?'checked':'')+'> '+label+'</label>';
+    if(key==="role") return '<label class="stc-field">'+label+'<select name="role"><option value="manager" '+(value==="manager"?"selected":"")+ '>Operations Manager</option><option value="project_manager" '+(value==="project_manager"?"selected":"")+ '>Project Manager</option><option value="finance" '+(value==="finance"?"selected":"")+ '>Finance Officer</option><option value="support" '+(value==="support"?"selected":"")+ '>Customer Support</option><option value="content_editor" '+(value==="content_editor"?"selected":"")+ '>Content Editor</option></select></label>';
+    if(typeof value==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(value?'checked':'')+'> '+label+'</label>';
     const long=["description","summary","excerpt","body","details"].includes(key);
     const type=["amount","progress","sort_order"].includes(key)?"number":"text";
     const input=long?'<textarea name="'+esc(key)+'" rows="3">'+esc(value??"")+'</textarea>':'<input name="'+esc(key)+'" type="'+type+'" value="'+esc(value??"")+'" '+(type==="number"?'step="any"':'')+'>';

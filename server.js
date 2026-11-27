@@ -1056,6 +1056,12 @@ app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
   res.json({ items: data || [] });
 });
 
+app.get("/api/admin/profiles/activity", requireStaff, async (req,res) => {
+  if (!(await staffCan(req,"profiles","read"))) return res.status(403).json({error:"Your staff role cannot view profile activity."});
+  const {data,error}=await db.from("stc_audit_logs").select("actor,action,entity_id,created_at,details").eq("entity","profiles").order("created_at",{ascending:false}).limit(30);
+  if(error)return sendError(res,error,500);
+  res.json({items:data||[]});
+});
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });

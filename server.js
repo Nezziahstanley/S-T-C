@@ -815,6 +815,21 @@ app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
   }
 });
 
+app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff permissions." });
+  const roles = ["manager", "project_manager", "finance", "support", "content_editor"];
+  const resources = [...new Set(roles.flatMap(role => [...(roleResources[role] || [])]))].sort();
+  res.json({ roles, resources, access: Object.fromEntries(roles.map(role => [role, [...(roleResources[role] || [])].sort()])) });
+});
+app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can view staff activity." });
+  const { data, error } = await db.from("stc_audit_logs")
+    .select("actor,action,entity,entity_id,created_at,details")
+    .eq("entity", "staff").order("created_at", { ascending: false }).limit(30);
+  if (error) return sendError(res, error, 500);
+  res.json({ items: data || [] });
+});
+
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });

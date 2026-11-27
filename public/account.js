@@ -295,7 +295,7 @@
       });
       page=0;renderRows();
     };
-    const keys=resource==="staff"?["full_name","phone","department","role","is_active","user_id"]:Object.keys(items[0]||{}).filter(k=>!["raw","content"].includes(k));
+    const keys=resource==="staff"?["full_name","phone","department","role","is_active","user_id"]:resource==="profiles"?["full_name","email","account_type","phone","company","institution","department"]:Object.keys(items[0]||{}).filter(k=>!["raw","content"].includes(k));
     const renderRows=()=>{
       const start=page*pageSize, visible=filtered.slice(start,start+pageSize);
       body.innerHTML=visible.length?visible.map(item=>{
@@ -372,7 +372,7 @@
       const view=event.target.closest("[data-profile-view-id]");if(!view||resource!=="profiles")return;
       const record=items.find(item=>String(item.user_id)===view.dataset.profileViewId);if(!record)return;
       const modal=$("#stcProfileViewModal",rootEl);if(!modal)return;
-      const fields=[["Full name",record.full_name],["Email",record.email],["Account type",record.account_type],["Phone",record.phone],["Company",record.company],["Institution",record.institution],["Department",record.department],["Study level",record.study_level],["Student number",record.student_number],["Email verification",record.email_verified?"Verified":"Unverified"],["Profile completion",record.profile_complete?"Complete":"Incomplete"],["Staff role",record.staff_role],["Registered",record.created_at?new Date(record.created_at).toLocaleString():"—"]];
+      const fields=[["Full name",record.full_name],["Email",record.email],["Account type",record.account_type],["Phone",record.phone],["Company",record.company],["Institution",record.institution],["Department",record.department],["Study level",record.study_level],["Student number",record.student_number],["Email verification",record.email_verified?"Verified":"Unverified"],["Profile completion",record.profile_complete?"Complete":"Incomplete"],["Staff role",record.staff_role],["Staff access",record.staff_role?(record.staff_active?"Active":"Suspended"):"No staff role"],["Registered",record.created_at?new Date(record.created_at).toLocaleString():"—"]];
       modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Profile details</h3><button type="button" id="stcProfileViewClose" aria-label="Close">×</button></div><div class="stc-profile-detail-grid">'+fields.map(([label,value])=>'<div><small>'+esc(label)+'</small><strong>'+esc(value??"—")+'</strong></div>').join("")+'</div><div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcProfileViewDone">Close</button></div></div>';
       modal.classList.remove("hidden");const close=()=>modal.classList.add("hidden");$("#stcProfileViewClose",modal).onclick=close;$("#stcProfileViewDone",modal).onclick=close;
     });
@@ -419,7 +419,7 @@
           clearTimeout(timer);const term=search.value.trim();if(term.length<2)return;
           results.innerHTML='<p class="stc-staff-account-empty">Searching accounts…</p>';
           timer=setTimeout(async()=>{const current=++sequence;try{
-            const data=await request("/api/admin/staff/accounts?q="+encodeURIComponent(term));
+            const data=await request("/api/admin/profiles/accounts?q="+encodeURIComponent(term));
             if(current!==sequence||search.value.trim()!==term)return;
             results.innerHTML=(data.accounts||[]).length?data.accounts.map(item=>'<button type="button" class="stc-staff-account-option" data-profile-user-id="'+esc(item.user_id)+'" data-profile-name="'+esc(item.name)+'" data-profile-email="'+esc(item.email)+'"><strong>'+esc(item.name)+'</strong><span>'+esc(item.email)+'</span><small>'+esc(item.account_type||"Profile incomplete")+'</small></button>').join(""):'<p class="stc-staff-account-empty">No matching account found.</p>';
           }catch(error){results.innerHTML='<p class="stc-staff-account-empty">'+esc(error.message)+'</p>'; }},250);

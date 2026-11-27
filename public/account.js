@@ -295,13 +295,13 @@
       });
       page=0;renderRows();
     };
-    const keys=resource==="staff"?["full_name","phone","department","role","is_active","user_id"]:resource==="profiles"?["full_name","email","account_type","phone","company","institution","department"]:Object.keys(items[0]||{}).filter(k=>!["raw","content"].includes(k));
+    const keys=resource==="staff"?["full_name","phone","department","role","is_active","user_id"]:resource==="profiles"?["full_name","email","account_type","phone","company","institution","has_profile"]:Object.keys(items[0]||{}).filter(k=>!["raw","content"].includes(k));
     const renderRows=()=>{
       const start=page*pageSize, visible=filtered.slice(start,start+pageSize);
       body.innerHTML=visible.length?visible.map(item=>{
-        const cells=keys.slice(0,7).map(key=>{let value=item[key];if(resource==="profiles"&&key==="account_type")value=({student:"Student",client:"Client",unclassified:"Not classified"})[value]||value;if(resource==="profiles"&&key==="profile_complete")value=value?"Complete":"Incomplete";if(resource==="profiles"&&key==="email_verified")value=value?"Verified":"Unverified";if(resource==="profiles"&&key==="staff_role")value=value||"—";if(resource==="profiles"&&key==="created_at")value=value?new Date(value).toLocaleDateString():"—";return '<td>'+esc(typeof value==="object"?JSON.stringify(value):value??"—")+'</td>';}).join("");
+        const cells=keys.slice(0,7).map(key=>{let value=item[key];if(resource==="profiles"&&key==="account_type")value=({student:"Student",client:"Client",unclassified:"Not classified"})[value]||value;if(resource==="profiles"&&key==="has_profile")value=value?"Profile exists":"No profile";if(resource==="profiles"&&key==="profile_complete")value=value?"Complete":"Incomplete";if(resource==="profiles"&&key==="email_verified")value=value?"Verified":"Unverified";if(resource==="profiles"&&key==="staff_role")value=value||"—";if(resource==="profiles"&&key==="created_at")value=value?new Date(value).toLocaleDateString():"—";return '<td>'+esc(typeof value==="object"?JSON.stringify(value):value??"—")+'</td>';}).join("");
         const id=item.id??item.user_id??"";
-        return '<tr>'+cells+'<td>'+(resource==="profiles"?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-profile-view-id="'+esc(id)+'">View</button><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button><button type="button" class="stc-staff-remove-button" data-profile-delete-id="'+esc(id)+'">Delete profile</button></div>':fields.length&&id?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>'+(resource==="staff"?'<button type="button" class="stc-staff-remove-button" data-remove-id="'+esc(id)+'">Remove access</button>':'')+'</div>':'—')+'</td></tr>';
+        return '<tr>'+cells+'<td>'+(resource==="profiles"?(item.has_profile?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-profile-view-id="'+esc(id)+'">View</button><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button><button type="button" class="stc-staff-remove-button" data-profile-delete-id="'+esc(id)+'">Delete profile</button></div>':'<button type="button" class="stc-admin-edit-button" data-profile-create-id="'+esc(id)+'">Create profile</button>'):fields.length&&id?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>'+(resource==="staff"?'<button type="button" class="stc-staff-remove-button" data-remove-id="'+esc(id)+'">Remove access</button>':'')+'</div>':'—')+'</td></tr>';
       }).join(""):'<tr><td colspan="'+(Math.min(keys.length,7)+1)+'" class="stc-dash-empty">No matching records.</td></tr>';
       pageLabel.textContent=filtered.length?("Showing "+(start+1)+"–"+Math.min(start+pageSize,filtered.length)+" of "+filtered.length):"0 records";
       $("#stcResourcePrev",rootEl).disabled=page===0;
@@ -369,10 +369,20 @@
       });
     });
     body?.addEventListener("click",event=>{
+      const create=event.target.closest("[data-profile-create-id]");if(!create||resource!=="profiles")return;
+      const record=items.find(item=>String(item.user_id)===create.dataset.profileCreateId);if(!record)return;
+      $("#stcAdminCreateButton")?.click();
+      setTimeout(()=>{
+        const search=$("#stcProfileAccountSearch"),selected=$("#stcProfileUserId"),label=$("#stcProfileAccountSelected");
+        if(search&&selected){search.value=(record.full_name||"")+" ("+(record.email||"")+")";selected.value=record.user_id;label.textContent="Selected: "+(record.email||record.user_id);}
+        const name=$("#stcAdminCreateForm")?.elements.namedItem("full_name");if(name&&!name.value)name.value=record.full_name||"";
+      },0);
+    });
+    body?.addEventListener("click",event=>{
       const view=event.target.closest("[data-profile-view-id]");if(!view||resource!=="profiles")return;
       const record=items.find(item=>String(item.user_id)===view.dataset.profileViewId);if(!record)return;
       const modal=$("#stcProfileViewModal",rootEl);if(!modal)return;
-      const fields=[["Full name",record.full_name],["Email",record.email],["Account type",record.account_type],["Phone",record.phone],["Company",record.company],["Institution",record.institution],["Department",record.department],["Study level",record.study_level],["Student number",record.student_number],["Email verification",record.email_verified?"Verified":"Unverified"],["Profile completion",record.profile_complete?"Complete":"Incomplete"],["Staff role",record.staff_role],["Staff access",record.staff_role?(record.staff_active?"Active":"Suspended"):"No staff role"],["Registered",record.created_at?new Date(record.created_at).toLocaleString():"—"]];
+      const fields=[["Full name",record.full_name],["Email",record.email],["Account type",record.account_type],["Phone",record.phone],["Company",record.company],["Institution",record.institution],["Department",record.department],["Study level",record.study_level],["Student number",record.student_number],["Email verification",record.email_verified?"Verified":"Unverified"],["Profile record",record.has_profile?"Exists":"Not created"],["Profile completion",record.profile_complete?"Complete":"Incomplete"],["Staff role",record.staff_role],["Staff access",record.staff_role?(record.staff_active?"Active":"Suspended"):"No staff role"],["Registered",record.created_at?new Date(record.created_at).toLocaleString():"—"]];
       modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Profile details</h3><button type="button" id="stcProfileViewClose" aria-label="Close">×</button></div><div class="stc-profile-detail-grid">'+fields.map(([label,value])=>'<div><small>'+esc(label)+'</small><strong>'+esc(value??"—")+'</strong></div>').join("")+'</div><div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcProfileViewDone">Close</button></div></div>';
       modal.classList.remove("hidden");const close=()=>modal.classList.add("hidden");$("#stcProfileViewClose",modal).onclick=close;$("#stcProfileViewDone",modal).onclick=close;
     });

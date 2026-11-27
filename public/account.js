@@ -257,7 +257,7 @@
 
 
   const adminEditableFields = {
-    staff:["role","is_active"], enquiries:["status"],
+    staff:["role","is_active"], profiles:["full_name","phone","company","account_type","institution","department","study_level","student_number"], enquiries:["status"],
     projects:["title","description","service","status","progress","start_date","due_date"],
     quotes:["title","description","amount","currency","status","valid_until"],
     invoices:["description","amount","currency","status","due_date"],
@@ -270,6 +270,7 @@
   };
   function resourceEditorField(key,value) {
     const label=esc(key.replaceAll("_"," "));
+    if(key==="account_type") return '<label class="stc-field">Account type<select name="account_type"><option value="student" '+(value==="student"?'selected':'')+'>Student</option><option value="client" '+(value==="client"?'selected':'')+'>Client</option></select></label>';
     if(key==="role") return '<label class="stc-field">'+label+'<select name="role">'+staffRoleDefinitions.map(r=>'<option value="'+esc(r.role_key)+'" '+(value===r.role_key?"selected":"")+ '>'+esc(r.label)+'</option>').join("")+'</select></label>';
     if(typeof value==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(value?'checked':'')+'> '+label+'</label>';
     const long=["description","summary","excerpt","body","details"].includes(key);
@@ -300,7 +301,7 @@
       body.innerHTML=visible.length?visible.map(item=>{
         const cells=keys.slice(0,7).map(key=>{let value=item[key];if(resource==="profiles"&&key==="account_type")value=({student:"Student",client:"Client",unclassified:"Not classified"})[value]||value;if(resource==="profiles"&&key==="profile_complete")value=value?"Complete":"Incomplete";if(resource==="profiles"&&key==="email_verified")value=value?"Verified":"Unverified";if(resource==="profiles"&&key==="staff_role")value=value||"—";if(resource==="profiles"&&key==="created_at")value=value?new Date(value).toLocaleDateString():"—";return '<td>'+esc(typeof value==="object"?JSON.stringify(value):value??"—")+'</td>';}).join("");
         const id=item.id??item.user_id??"";
-        return '<tr>'+cells+'<td>'+(resource==="profiles"?'<span class="stc-profile-readonly">View only</span>':fields.length&&id?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>'+(resource==="staff"?'<button type="button" class="stc-staff-remove-button" data-remove-id="'+esc(id)+'">Remove access</button>':'')+'</div>':'—')+'</td></tr>';
+        return '<tr>'+cells+'<td>'+(resource==="profiles"?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-profile-view-id="'+esc(id)+'">View</button><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button><button type="button" class="stc-staff-remove-button" data-profile-delete-id="'+esc(id)+'">Delete profile</button></div>':fields.length&&id?'<div class="stc-staff-row-actions"><button type="button" class="stc-admin-edit-button" data-edit-id="'+esc(id)+'">Edit</button>'+(resource==="staff"?'<button type="button" class="stc-staff-remove-button" data-remove-id="'+esc(id)+'">Remove access</button>':'')+'</div>':'—')+'</td></tr>';
       }).join(""):'<tr><td colspan="'+(Math.min(keys.length,7)+1)+'" class="stc-dash-empty">No matching records.</td></tr>';
       pageLabel.textContent=filtered.length?("Showing "+(start+1)+"–"+Math.min(start+pageSize,filtered.length)+" of "+filtered.length):"0 records";
       $("#stcResourcePrev",rootEl).disabled=page===0;
@@ -314,6 +315,15 @@
     $("#stcResourcePrev",rootEl)?.addEventListener("click",()=>{page=Math.max(0,page-1);renderRows();});
     $("#stcResourceNext",rootEl)?.addEventListener("click",()=>{if((page+1)*pageSize<filtered.length)page++;renderRows();});
     body?.addEventListener("click", async event => {
+      const profileDelete=event.target.closest("[data-profile-delete-id]");
+      if(profileDelete&&resource==="profiles"){
+        const userId=profileDelete.dataset.profileDeleteId,record=items.find(item=>String(item.user_id)===userId);
+        if(!window.confirm("Delete the profile for "+(record?.full_name||record?.email||"this account")+"? This removes only the profile record. The login account and authentication data will remain."))return;
+        profileDelete.disabled=true;
+        try{await request("/api/admin/profiles/"+encodeURIComponent(userId),{method:"DELETE"});await renderDashboard();}
+        catch(error){window.alert(error.message);profileDelete.disabled=false;}
+        return;
+      }
       const removeButton = event.target.closest("[data-remove-id]");
       if (!removeButton || resource !== "staff") return;
       const userId = removeButton.dataset.removeId;
@@ -358,6 +368,14 @@
         finally{submit.disabled=false;submit.textContent="Save changes";}
       });
     });
+    body?.addEventListener("click",event=>{
+      const view=event.target.closest("[data-profile-view-id]");if(!view||resource!=="profiles")return;
+      const record=items.find(item=>String(item.user_id)===view.dataset.profileViewId);if(!record)return;
+      const modal=$("#stcProfileViewModal",rootEl);if(!modal)return;
+      const fields=[["Full name",record.full_name],["Email",record.email],["Account type",record.account_type],["Phone",record.phone],["Company",record.company],["Institution",record.institution],["Department",record.department],["Study level",record.study_level],["Student number",record.student_number],["Email verification",record.email_verified?"Verified":"Unverified"],["Profile completion",record.profile_complete?"Complete":"Incomplete"],["Staff role",record.staff_role],["Registered",record.created_at?new Date(record.created_at).toLocaleString():"—"]];
+      modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Profile details</h3><button type="button" id="stcProfileViewClose" aria-label="Close">×</button></div><div class="stc-profile-detail-grid">'+fields.map(([label,value])=>'<div><small>'+esc(label)+'</small><strong>'+esc(value??"—")+'</strong></div>').join("")+'</div><div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcProfileViewDone">Close</button></div></div>';
+      modal.classList.remove("hidden");const close=()=>modal.classList.add("hidden");$("#stcProfileViewClose",modal).onclick=close;$("#stcProfileViewDone",modal).onclick=close;
+    });
     renderRows();
   }
 
@@ -370,9 +388,11 @@
     services:{fields:["slug","name","summary","description","active","sort_order"],required:["slug","name"],defaults:{active:true,sort_order:0}},
     posts:{fields:["title","slug","excerpt","body","status","published_at"],required:["title","slug","body"],defaults:{status:"draft"}},
     portfolio:{fields:["title","slug","category","summary","details","url","featured"],required:["title","slug"],defaults:{featured:false}}
+    ,profiles:{fields:["full_name","phone","company","account_type","institution","department","study_level","student_number"],required:["full_name","account_type"],defaults:{}}
   };
   function resourceCreateField(key,required,defaults) {
     const label=esc(key.replaceAll("_"," "));
+    if(key==="account_type") return '<label class="stc-field">Account type<select name="account_type" required><option value="">Choose account type</option><option value="student">Student</option><option value="client">Client</option></select></label>';
     if(typeof defaults[key]==="boolean") return '<label class="stc-field stc-admin-edit-check"><input type="checkbox" name="'+esc(key)+'" '+(defaults[key]?'checked':'')+'> '+label+'</label>';
     const long=["description","summary","excerpt","body","details","message"].includes(key);
     const type=["amount","progress","sort_order","enquiry_id","project_id","quote_id"].includes(key)?"number":["start_date","due_date","valid_until","published_at"].includes(key)?"date":"text";
@@ -386,14 +406,31 @@
     if(!button||!modal)return;
     button.addEventListener("click",()=>{
       const fields=config.fields.map(key=>resourceCreateField(key,config.required,config.defaults||{})).join("");
-      modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Add '+esc(resourceNames[resource]||resource)+'</h3><button type="button" id="stcAdminCreateClose" aria-label="Close">×</button></div><form id="stcAdminCreateForm">'+fields+'<div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcAdminCreateCancel">Cancel</button><button type="submit" class="stc-auth-submit">Create record</button></div><p id="stcAdminCreateStatus" class="stc-account-status" aria-live="polite"></p></form></div>';
+      const accountPicker=resource==="profiles"?'<label class="stc-field">Find existing STC account<input id="stcProfileAccountSearch" type="search" placeholder="Search by name or email" autocomplete="off" required><input id="stcProfileUserId" name="user_id" type="hidden" required><div id="stcProfileAccountResults" class="stc-staff-account-results" role="listbox"></div><small id="stcProfileAccountSelected" class="stc-staff-account-help">Select the account that will own this profile.</small></label>':"";
+      modal.innerHTML='<div class="stc-admin-edit-card"><div class="stc-admin-panel-heading"><h3>Add '+esc(resourceNames[resource]||resource)+'</h3><button type="button" id="stcAdminCreateClose" aria-label="Close">×</button></div><form id="stcAdminCreateForm">'+accountPicker+fields+'<div class="stc-admin-edit-actions"><button type="button" class="stc-admin-edit-cancel" id="stcAdminCreateCancel">Cancel</button><button type="submit" class="stc-auth-submit">Create record</button></div><p id="stcAdminCreateStatus" class="stc-account-status" aria-live="polite"></p></form></div>';
       modal.classList.remove("hidden");
       const close=()=>modal.classList.add("hidden");
       $("#stcAdminCreateClose",modal).onclick=close;$("#stcAdminCreateCancel",modal).onclick=close;
+      if(resource==="profiles"){
+        const search=$("#stcProfileAccountSearch",modal),selected=$("#stcProfileUserId",modal),results=$("#stcProfileAccountResults",modal),selectedLabel=$("#stcProfileAccountSelected",modal);
+        let timer=null,sequence=0;
+        search?.addEventListener("input",()=>{
+          selected.value="";selectedLabel.textContent="Select a matching account before saving.";results.innerHTML="";
+          clearTimeout(timer);const term=search.value.trim();if(term.length<2)return;
+          results.innerHTML='<p class="stc-staff-account-empty">Searching accounts…</p>';
+          timer=setTimeout(async()=>{const current=++sequence;try{
+            const data=await request("/api/admin/staff/accounts?q="+encodeURIComponent(term));
+            if(current!==sequence||search.value.trim()!==term)return;
+            results.innerHTML=(data.accounts||[]).length?data.accounts.map(item=>'<button type="button" class="stc-staff-account-option" data-profile-user-id="'+esc(item.user_id)+'" data-profile-name="'+esc(item.name)+'" data-profile-email="'+esc(item.email)+'"><strong>'+esc(item.name)+'</strong><span>'+esc(item.email)+'</span><small>'+esc(item.account_type||"Profile incomplete")+'</small></button>').join(""):'<p class="stc-staff-account-empty">No matching account found.</p>';
+          }catch(error){results.innerHTML='<p class="stc-staff-account-empty">'+esc(error.message)+'</p>'; }},250);
+        });
+        results?.addEventListener("click",event=>{const option=event.target.closest("[data-profile-user-id]");if(!option)return;selected.value=option.dataset.profileUserId;search.value=option.dataset.profileName+" ("+option.dataset.profileEmail+")";selectedLabel.textContent="Selected: "+option.dataset.profileEmail;results.innerHTML="";});
+      }
       $("#stcAdminCreateForm",modal).addEventListener("submit",async event=>{
         event.preventDefault();
         const form=event.currentTarget,submit=$('button[type="submit"]',form);submit.disabled=true;submit.textContent="Creating…";
         const payload={...config.defaults};
+        if(resource==="profiles"&&!$("#stcProfileUserId",modal)?.value){const status=$("#stcAdminCreateStatus",modal);status.textContent="Search for and select an existing STC account first.";status.classList.add("is-error");submit.disabled=false;submit.textContent="Create record";return;}
         for(const key of config.fields){
           const input=form.elements.namedItem(key);if(!input)continue;
           if(input.type==="checkbox")payload[key]=input.checked;
@@ -431,7 +468,7 @@
         const columns = keys.slice(0,7).map(key=>'<th>'+esc(key.replaceAll("_"," "))+'</th>').join("");
         const profileFilters=requestedResource==="profiles"?'<select id="stcProfileTypeFilter" aria-label="Filter by account type"><option value="">All account types</option><option value="student">Students</option><option value="client">Clients</option><option value="unclassified">Not classified</option></select><select id="stcProfileCompletionFilter" aria-label="Filter by profile completion"><option value="">All profile states</option><option value="complete">Profile complete</option><option value="incomplete">Profile incomplete</option></select>':"";
         const profileSummary=requestedResource==="profiles"?'<section class="stc-profile-summary">'+metric("Registered accounts",items.length)+metric("Students",items.filter(x=>x.account_type==="student").length)+metric("Clients",items.filter(x=>x.account_type==="client").length)+metric("Incomplete profiles",items.filter(x=>!x.profile_complete).length)+'</section>':"";
-        const resourceTable = profileSummary+'<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded'+(requestedResource==="profiles"?' (maximum 500)':' (maximum 100)')+'</span>'+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="'+(requestedResource==="profiles"?'Search name, email, phone or student number…':'Search records…')+'" aria-label="Search records">'+profileFilters+(requestedResource==="staff"?'<select id="stcStaffRoleFilter" aria-label="Filter by staff role"><option value="">All roles</option><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select><select id="stcStaffStatusFilter" aria-label="Filter by account status"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Suspended</option></select>':'')+'<span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div>';
+        const resourceTable = profileSummary+'<section class="stc-dash-panel stc-dash-resource-table"><div class="stc-dash-table-head"><h3>'+esc(heading)+'</h3><span>'+items.length+' records loaded'+(requestedResource==="profiles"?' (maximum 500)':' (maximum 100)')+'</span>'+(requestedResource==="profiles"?'<button type="button" id="stcProfileExport" class="stc-admin-edit-button">Export CSV</button>':'')+(adminCreateFields[requestedResource]?'<button type="button" id="stcAdminCreateButton" class="stc-admin-edit-button">Add record</button>':'')+'</div><div class="stc-admin-resource-tools"><input id="stcResourceSearch" type="search" placeholder="'+(requestedResource==="profiles"?'Search name, email, phone or student number…':'Search records…')+'" aria-label="Search records">'+profileFilters+(requestedResource==="staff"?'<select id="stcStaffRoleFilter" aria-label="Filter by staff role"><option value="">All roles</option><option value="manager">Operations Manager</option><option value="project_manager">Project Manager</option><option value="finance">Finance Officer</option><option value="support">Customer Support</option><option value="content_editor">Content Editor</option></select><select id="stcStaffStatusFilter" aria-label="Filter by account status"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Suspended</option></select>':'')+'<span id="stcResourcePage">0 records</span></div><div class="stc-table-wrap"><table><thead><tr>'+columns+'<th>Actions</th>'+'</tr></thead><tbody id="stcResourceRows"></tbody></table></div><div class="stc-admin-pagination"><button type="button" id="stcResourcePrev" disabled>Previous</button><button type="button" id="stcResourceNext" disabled>Next</button></div></section><div id="stcAdminEditModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Edit record"></div><div id="stcAdminCreateModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Create record"></div><div id="stcProfileViewModal" class="stc-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-label="Profile details"></div>';
         let staffAssignment = "";
         if (requestedResource === "staff" && role === "super_admin") {
           staffAssignment = '<section class="stc-staff-summary">'+metric("Total staff",items.length)+metric("Active staff",items.filter(x=>x.is_active===true).length)+metric("Suspended staff",items.filter(x=>x.is_active===false).length)+metric("Assigned roles",new Set(items.map(x=>x.role)).size)+'</section><section class="stc-staff-permissions"><div class="stc-admin-panel-heading"><div><h3>Staff role and permission centre</h3><p>Create roles and configure module-by-module Create, Read, Update and Delete access.</p></div></div><div id="stcStaffPermissions" class="stc-staff-permissions-content"><p>Loading permissions…</p></div></section><section class="stc-staff-activity"><div class="stc-admin-panel-heading"><div><h3>Staff administration history</h3><p>Recent role assignments, role changes and suspensions.</p></div></div><div id="stcStaffActivity" class="stc-staff-activity-content"><p>Loading staff activity…</p></div></section><form id="stcAssignStaffForm" class="stc-staff-assignment"><h3>Assign staff responsibilities</h3><p>Search for an existing STC account by name or email, select the correct person, and assign the role they need. Assigning a role activates that staff account.</p><label>Find STC account<input id="stcStaffAccountSearch" type="search" placeholder="Search by name or email address" autocomplete="off" required aria-describedby="stcStaffAccountHelp"><input name="user_id" id="stcStaffSelectedUserId" type="hidden" required><span id="stcStaffAccountHelp" class="stc-staff-account-help">Type at least 2 characters, then select the correct account.</span><div id="stcStaffAccountResults" class="stc-staff-account-results" role="listbox" aria-label="Matching STC accounts"></div><span id="stcStaffAccountSelected" class="stc-staff-account-selected" aria-live="polite"></span></label><label>Staff role<select name="role" id="stcStaffRoleSelect" required><option value="">Loading roles…</option></select></label><button class="stc-auth-submit" type="submit">Assign staff role</button><p id="stcAssignStaffStatus" class="stc-account-status" aria-live="polite"></p></form>';
@@ -441,6 +478,16 @@
       $("#stcLogout")?.addEventListener("click",()=>{clearSession();location.hash="#account/login";});
         bindAdminResource(items,requestedResource);
         bindAdminCreate(requestedResource);
+        if(requestedResource==="profiles"){
+          $("#stcProfileExport")?.addEventListener("click",()=>{
+            const cols=["full_name","email","account_type","phone","company","institution","department","study_level","student_number","email_verified","profile_complete","created_at"];
+            const quote=value=>'"'+String(value??"").replaceAll('"','""')+'"';
+            const csv=[cols.join(","),...items.map(item=>cols.map(key=>quote(item[key])).join(","))].join("\r\n");
+            const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+            link.href=url;link.download="stc-user-profiles.csv";link.click();URL.revokeObjectURL(url);
+          });
+        }
+
         if (requestedResource === "staff" && role === "super_admin") {
           Promise.all([
             request("/api/admin/staff/permissions"),

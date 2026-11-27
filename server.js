@@ -848,7 +848,7 @@ const adminTables = {
 };
 
 app.get("/api/admin/profiles", requireStaff, async (req,res) => {
-  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the CEO administrator can view the full user directory."});
+  if (!(await staffCan(req,"profiles","read"))) return res.status(403).json({error:"Your staff role cannot view user profiles."});
   const q = clean(req.query?.q).slice(0,120);
   const type = ["student","client","unclassified"].includes(clean(req.query?.type)) ? clean(req.query.type) : "";
   const completion = ["complete","incomplete"].includes(clean(req.query?.completion)) ? clean(req.query.completion) : "";

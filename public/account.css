@@ -379,3 +379,13 @@
 .stc-permission-save-row .stc-account-status{margin:0}
 @media(max-width:760px){.stc-role-admin-grid{grid-template-columns:1fr}.stc-permission-editor .stc-admin-panel-heading{align-items:stretch;flex-direction:column}.stc-permission-role-select{width:100%}}
 @media(max-width:520px){.stc-role-list-item{align-items:flex-start;flex-direction:column}.stc-permission-save-row{align-items:stretch;flex-direction:column}}
+
+/* User profiles directory */
+.stc-profile-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}
+.stc-profile-summary .stc-dash-metric{min-width:0}
+.stc-profile-readonly{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef3f8;color:#526176;font-size:12px;font-weight:700;white-space:nowrap}
+.stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-admin-resource-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-admin-resource-tools input{flex:1 1 260px;min-width:180px}
+.stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-admin-resource-tools select{flex:0 1 190px;min-width:150px}
+@media(max-width:760px){.stc-profile-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.stc-profile-summary{grid-template-columns:1fr}}

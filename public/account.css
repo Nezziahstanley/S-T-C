@@ -229,3 +229,60 @@
 .stc-admin-chart-grid.is-compact .stc-admin-donut-layout{gap:12px}
 @media(max-width:1100px){.stc-admin-chart-grid.is-three-columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.stc-admin-customize-row{align-items:flex-start;flex-direction:column}.stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:1fr}.stc-admin-donut-layout{grid-template-columns:minmax(110px,.75fr) minmax(0,1.25fr);gap:12px}.stc-admin-chart-tools{justify-content:flex-start}.stc-admin-layout-controls{align-items:flex-start;flex-direction:column}}
+
+
+/* Admin workspace alignment, navigation and responsive polish */
+.stc-dashboard>.stc-dash-top{position:sticky;top:0;z-index:950;min-height:72px}
+.stc-admin-layout{grid-template-columns:258px minmax(0,1fr);align-items:stretch}
+.stc-admin-sidebar{top:72px;height:calc(100vh - 72px);min-height:420px;overscroll-behavior:contain}
+.stc-admin-main,.stc-admin-layout .stc-dash-main{width:100%;max-width:none;min-width:0}
+.stc-admin-layout .stc-dash-main{padding:clamp(22px,3vw,42px)}
+.stc-admin-side-nav{gap:15px}
+.stc-admin-side-group> a{min-height:40px}
+.stc-admin-side-group> a:focus-visible,.stc-admin-mobile-toggle:focus-visible,.stc-admin-customize-row button:focus-visible,.stc-admin-layout-controls button:focus-visible,.stc-admin-chart select:focus-visible,.stc-admin-resource-tools input:focus-visible,.stc-admin-pagination button:focus-visible,.stc-admin-edit-button:focus-visible{outline:3px solid rgba(8,127,169,.35);outline-offset:2px}
+.stc-admin-mobile-toggle{display:none}
+.stc-admin-chart-grid{align-items:stretch}
+.stc-admin-chart,.stc-admin-chart-visual{min-width:0}
+.stc-admin-recent .stc-dash-panel{overflow:hidden}
+.stc-admin-section-title{scroll-margin-top:90px}
+.stc-admin-module-grid{align-items:stretch}
+.stc-admin-nav-group{height:100%}
+.stc-admin-nav-group a{min-height:38px;align-items:center}
+.stc-admin-resource-tools input{min-width:0}
+.stc-admin-pagination button{min-height:38px}
+.stc-admin-edit-card{max-height:calc(100dvh - 40px)}
+@media(max-width:900px){
+ .stc-admin-layout{grid-template-columns:220px minmax(0,1fr)}
+ .stc-admin-sidebar{top:72px;height:calc(100vh - 72px)}
+ .stc-admin-layout .stc-dash-main{padding:24px 18px}
+ .stc-admin-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:680px){
+ .stc-dashboard>.stc-dash-top{position:relative;min-height:0}
+ .stc-admin-layout{display:block}
+ .stc-admin-mobile-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:0 15px;border:0;border-bottom:1px solid #dce6ee;background:#fff;color:#18344f;text-align:left;font:750 .78rem Inter,system-ui,sans-serif;cursor:pointer}
+ .stc-admin-mobile-toggle span{font-size:1.1rem;color:#087fa9}
+ .stc-admin-mobile-toggle[aria-expanded="true"]{background:#f1f8fb}
+ .stc-admin-sidebar{position:relative;top:auto;height:auto;min-height:0;max-height:0;padding:0 12px;overflow:hidden;border:0;transition:max-height .22s ease,padding .22s ease}
+ .stc-admin-sidebar.is-open{max-height:65vh;padding:14px 12px;overflow:auto;border-bottom:1px solid #dce6ee}
+ .stc-admin-side-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .stc-admin-side-group h3{line-height:1.4}
+ .stc-admin-side-group> a{font-size:.68rem;padding:8px;min-height:38px}
+ .stc-admin-layout .stc-dash-main{padding:20px 4vw}
+ .stc-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .stc-admin-chart-grid,.stc-admin-chart-grid.is-three-columns{grid-template-columns:1fr}
+ .stc-admin-chart-grid .stc-admin-chart:last-child:nth-child(odd){grid-column:auto}
+ .stc-admin-panel-heading{align-items:flex-start;flex-direction:column}
+ .stc-admin-chart-tools{justify-content:flex-start}
+ .stc-admin-donut-layout{grid-template-columns:minmax(105px,.75fr) minmax(0,1.25fr)}
+ .stc-admin-recent{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:420px){
+ .stc-admin-metrics{grid-template-columns:1fr 1fr;gap:8px}
+ .stc-admin-metrics .stc-dash-metric{padding:12px;min-height:88px}
+ .stc-admin-metrics .stc-dash-metric strong{font-size:1.35rem}
+ .stc-admin-donut-layout{grid-template-columns:1fr}
+ .stc-admin-donut{width:150px}
+ .stc-admin-side-nav{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.stc-admin-sidebar,.stc-admin-chart{transition:none}}

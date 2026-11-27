@@ -818,6 +818,13 @@ app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
   }
 });
 
+app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
+  if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
+  const {data,error}=await db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole);
+  if(error)return sendError(res,error,500);
+  const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
+  res.json({resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+});
 app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
   if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
   const [rolesResult, permissionsResult] = await Promise.all([

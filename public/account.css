@@ -399,3 +399,44 @@
 #stcProfileAccountSelected{display:block;margin-top:5px}
 .stc-dash-resource-table:has(#stcProfileTypeFilter) .stc-dash-table-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
 @media(max-width:560px){.stc-profile-detail-grid{grid-template-columns:1fr}}
+
+
+/* User Profiles — refined directory workspace */
+.stc-admin-layout .stc-profile-summary{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0 0 20px}
+.stc-profile-summary .stc-dash-metric{position:relative;min-height:112px;padding:19px 21px;border:1px solid #e3ebf3;border-radius:16px;box-shadow:0 8px 24px rgba(16,45,72,.045);overflow:hidden}
+.stc-profile-summary .stc-dash-metric:after{content:"";position:absolute;right:-22px;bottom:-34px;width:94px;height:94px;border-radius:50%;background:rgba(7,127,169,.055)}
+.stc-profile-summary .stc-dash-metric small{font-size:.72rem;font-weight:600;letter-spacing:.01em;color:#74849a}
+.stc-profile-summary .stc-dash-metric strong{position:relative;z-index:1;margin-top:12px;font-size:2rem;line-height:1.1;color:#102d4a}
+.stc-profile-directory{padding:24px!important;border:1px solid #e2eaf2!important;border-radius:18px!important;box-shadow:0 10px 28px rgba(17,46,76,.045)!important}
+.stc-profile-directory-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+.stc-profile-directory-heading h3{margin:5px 0;color:#102d4a;font-size:1.05rem;letter-spacing:-.02em}
+.stc-profile-directory-heading p{margin:0;color:#73849a;font-size:.78rem}
+.stc-profile-directory-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px}
+.stc-profile-directory-actions>span{margin-right:5px;color:#8190a4;font-size:.72rem;white-space:nowrap}
+.stc-profile-primary-action{background:#087fa9!important;border-color:#087fa9!important;color:#fff!important}
+.stc-profile-directory .stc-admin-resource-tools{display:grid;grid-template-columns:minmax(240px,1fr) minmax(145px,180px) minmax(150px,190px) auto;gap:10px;margin:0 0 16px}
+.stc-profile-directory .stc-admin-resource-tools input{width:100%;min-height:42px;padding:10px 13px;border-color:#dce6ef;border-radius:10px;font-size:.78rem}
+.stc-profile-directory .stc-admin-resource-tools select{width:100%;max-width:none;min-width:0;min-height:42px;border-color:#dce6ef;border-radius:10px;font-size:.76rem}
+.stc-profile-directory .stc-admin-resource-tools #stcResourcePage{display:flex;align-items:center;justify-content:flex-end;font-size:.7rem}
+.stc-profile-directory .stc-table-wrap{border:1px solid #e8eef4;border-radius:12px}
+.stc-profile-directory table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0}
+.stc-profile-directory thead th{padding:13px 12px;background:#f7f9fc;color:#65768c;font-size:.67rem;font-weight:700;letter-spacing:.025em;text-transform:uppercase;border-bottom:1px solid #e5edf4;white-space:nowrap}
+.stc-profile-directory tbody td{padding:14px 12px;color:#41536a;font-size:.75rem;border-bottom:1px solid #edf1f5;vertical-align:middle}
+.stc-profile-directory tbody tr:last-child td{border-bottom:0}
+.stc-profile-directory tbody tr:hover td{background:#fbfdff}
+.stc-profile-directory tbody td:first-child{font-weight:700;color:#173653}
+.stc-profile-directory tbody td:nth-child(2){min-width:210px}
+.stc-profile-directory .stc-staff-row-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stc-profile-directory .stc-admin-edit-button,.stc-profile-directory .stc-staff-remove-button{padding:7px 10px;border-radius:8px;font-size:.68rem;white-space:nowrap}
+.stc-profile-directory .stc-admin-pagination{display:flex;justify-content:flex-end;gap:8px;padding-top:16px}
+.stc-profile-directory .stc-admin-pagination button{padding:9px 13px;border:1px solid #dce6ef;border-radius:9px;background:#fff;color:#52677e;font-size:.72rem;font-weight:650}
+.stc-profile-activity{margin-top:16px!important;padding:22px 24px!important;border:1px solid #e2eaf2!important;border-radius:17px!important;box-shadow:0 8px 24px rgba(17,46,76,.035)!important}
+.stc-profile-activity .stc-admin-panel-heading{margin-bottom:14px}
+.stc-profile-activity .stc-admin-panel-heading h3{margin:0;color:#173653;font-size:.96rem}
+.stc-profile-activity .stc-admin-panel-heading p{margin:5px 0 0;color:#7a8a9e;font-size:.76rem}
+.stc-profile-activity .stc-dash-empty{padding:22px 16px;border:1px dashed #dce6ef;border-radius:11px;background:#fafcfe;color:#8291a4;text-align:center;font-size:.78rem}
+.stc-profile-activity .stc-table-wrap{border:1px solid #e8eef4;border-radius:11px}
+.stc-profile-activity table{min-width:650px}
+@media(max-width:980px){.stc-profile-directory .stc-admin-resource-tools{grid-template-columns:minmax(220px,1fr) minmax(140px,180px)}.stc-profile-directory .stc-admin-resource-tools #stcResourcePage{justify-content:flex-start}.stc-profile-directory-heading{align-items:flex-start;flex-direction:column}.stc-profile-directory-actions{justify-content:flex-start}}
+@media(max-width:620px){.stc-admin-layout .stc-profile-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stc-profile-summary .stc-dash-metric{min-height:96px;padding:14px}.stc-profile-summary .stc-dash-metric strong{font-size:1.65rem}.stc-profile-directory{padding:16px!important}.stc-profile-directory .stc-admin-resource-tools{grid-template-columns:1fr}.stc-profile-directory-actions{width:100%}.stc-profile-directory-actions button{flex:1}.stc-profile-activity{padding:17px!important}}
+@media(max-width:380px){.stc-admin-layout .stc-profile-summary{grid-template-columns:1fr}}

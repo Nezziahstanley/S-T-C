@@ -185,7 +185,7 @@
 
   const adminChartPalette = ["#087fa9","#21a6b4","#67c6bb","#f0ad4e","#7586d8","#e17c91","#4d9c83","#9b8bd3"];
   function adminChartPanel(title, values, key = "chart", defaultType = "bar", suffix = "", allowLine = false) {
-    const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>a[0].localeCompare(b[0]));
+    const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>key==="monthly"?(Date.parse(a[0])-Date.parse(b[0])||a[0].localeCompare(b[0])):a[0].localeCompare(b[0]));
     const preference = (()=>{try{return JSON.parse(localStorage.getItem("stcAdminDashboardPrefs")||"{}")}catch{return {}}})();
     const allowedTypes = allowLine ? ["bar","donut","line"] : ["bar","donut"];
     const type = allowedTypes.includes(preference.types?.[key])?preference.types[key]:defaultType;
@@ -217,6 +217,15 @@
     const save=p=>{try{localStorage.setItem(prefsKey,JSON.stringify(p))}catch{}};
     const grid=$("#stcAdminChartGrid",rootEl), toggle=$("#stcAdminCustomize",rootEl), controls=$("#stcAdminLayoutControls",rootEl);
     const navToggle=$("#stcAdminNavToggle",rootEl), sidebar=$("#stcAdminSidebar",rootEl);
+    const period=$("#stcAdminChartPeriod",rootEl), monthly=grid?.querySelector('[data-chart-key="monthly"]');
+    const fullMonthlyValues=monthly?.dataset.chartValues||"[]";
+    period?.addEventListener("change",()=>{
+      if(!monthly)return;
+      const all=JSON.parse(fullMonthlyValues);
+      const count=period.value==="all"?all.length:Number(period.value);
+      monthly.dataset.chartValues=JSON.stringify(all.slice(-count));
+      renderAdminChart(monthly);
+    });
     navToggle?.addEventListener("click",()=>{const open=navToggle.getAttribute("aria-expanded")!=="true";navToggle.setAttribute("aria-expanded",String(open));sidebar?.classList.toggle("is-open",open);});
     sidebar?.querySelectorAll("a").forEach(link=>link.addEventListener("click",()=>{navToggle?.setAttribute("aria-expanded","false");sidebar.classList.remove("is-open");}));
     const prefs=read();
@@ -436,7 +445,21 @@
           const priorityMetrics = ["enquiries","projects","invoices","tickets"];
           const cards = priorityMetrics.map(key=>metric(metricLabels[key],metrics[key] ?? 0)).join("");
           const analytics = overview?.analytics || {};
-          const chart = '<div class="stc-admin-customize-row"><div><span class="stc-admin-eyebrow">STC ANALYTICS</span><strong>Dashboard charts</strong></div><button type="button" id="stcAdminCustomize" aria-expanded="false">Customize charts</button></div><div class="stc-admin-layout-controls" id="stcAdminLayoutControls" hidden><label>Chart columns <select data-layout-columns><option value="2">Two columns</option><option value="3">Three columns</option></select></label><label><input type="checkbox" data-layout-compact> Compact chart cards</label><button type="button" data-layout-reset>Reset chart layout</button></div><div class="stc-admin-chart-grid" id="stcAdminChartGrid">'+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity,"monthly","line","",true)+adminChartPanel("Project status",analytics.project_status,"project","donut")+adminChartPanel("Enquiry status",analytics.enquiry_status,"enquiry","donut")+adminChartPanel("Payment status",analytics.payment_status,"payment","donut")+'</div>';
+          const attentionSignals = [
+            {label:"Enquiries awaiting response",resource:"enquiries",values:analytics.enquiry_status,match:/new|pending|unanswered|open/i},
+            {label:"Projects needing attention",resource:"projects",values:analytics.project_status,match:/blocked|delayed|on_hold|at_risk/i},
+            {label:"Invoices awaiting payment",resource:"invoices",values:analytics.payment_status,match:/pending|overdue|unpaid/i},
+            {label:"Open support tickets",resource:"tickets",values:analytics.ticket_status,match:/open|pending|unresolved/i}
+          ];
+          const attentionRows = attentionSignals.map(signal=>{
+            const entries=Object.entries(signal.values||{});
+            const count=entries.reduce((sum,[label,value])=>sum+(signal.match.test(label)?Number(value)||0:0),0);
+            return { ...signal,count,available:entries.length>0 };
+          });
+          const availableAttention=attentionRows.filter(item=>item.available);
+          const attentionTotal=availableAttention.reduce((sum,item)=>sum+item.count,0);
+          const attention = '<section class="stc-admin-attention"><div class="stc-admin-attention-heading"><div><span class="stc-admin-eyebrow">FOLLOW-UP</span><h3>Needs attention</h3></div><span class="stc-admin-attention-total">'+(availableAttention.length?attentionTotal.toLocaleString():"—")+'</span></div>'+(availableAttention.length?'<div class="stc-admin-attention-list">'+attentionRows.filter(item=>item.available).map(item=>'<a href="#dashboard/admin/'+item.resource+'"><span>'+esc(item.label)+'</span><strong>'+item.count.toLocaleString()+'</strong><span aria-hidden="true">›</span></a>').join("")+'</div>':'<p class="stc-admin-attention-empty">Status summaries are not available yet. Open a management section to review records.</p>')+'</section>';
+          const chart = attention+'<div class="stc-admin-customize-row"><div><span class="stc-admin-eyebrow">STC ANALYTICS</span><strong>Dashboard charts</strong></div><div class="stc-admin-dashboard-tools"><label class="stc-admin-period-filter">Monthly trend <select id="stcAdminChartPeriod" aria-label="Monthly activity chart period"><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="all">All available</option></select></label><button type="button" id="stcAdminCustomize" aria-expanded="false">Customize charts</button></div></div><div class="stc-admin-layout-controls" id="stcAdminLayoutControls" hidden><label>Chart columns <select data-layout-columns><option value="2">Two columns</option><option value="3">Three columns</option></select></label><label><input type="checkbox" data-layout-compact> Compact chart cards</label><button type="button" data-layout-reset>Reset chart layout</button></div><div class="stc-admin-chart-grid" id="stcAdminChartGrid">'+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity,"monthly","line","",true)+adminChartPanel("Project status",analytics.project_status,"project","donut")+adminChartPanel("Enquiry status",analytics.enquiry_status,"enquiry","donut")+adminChartPanel("Payment status",analytics.payment_status,"payment","donut")+'</div>';
           content = '<div class="stc-admin-welcome"><div><span class="stc-admin-eyebrow">STC CONTROL CENTRE</span><h2>Good day, '+esc(name)+'</h2><p>Your business overview at a glance.</p></div><div class="stc-admin-welcome-meta"><span class="stc-admin-live-dot"></span><span>Administrator access</span><small>'+new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})+'</small></div></div><div class="stc-dash-metrics stc-admin-metrics">'+cards+'</div>'+chart;
         } else {
           const cards = overview ? Object.entries(metrics).map(([k,v])=>metric(k.replaceAll("_"," "),v)).join("") : collections.map(x=>metric(resourceNames[x.resource]||x.resource,x.items.length)).join("");

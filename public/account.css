@@ -333,3 +333,15 @@
 .stc-staff-account-option span,.stc-staff-account-option small{color:var(--muted,#687386);font-size:.8rem}
 .stc-staff-account-empty{margin:0;padding:10px 12px;color:var(--muted,#687386);font-size:.85rem}
 .stc-staff-account-selected{display:block;margin-top:7px;color:var(--success,#18845b);font-size:.84rem}
+
+.stc-staff-permissions,.stc-staff-activity{margin:18px 0;padding:20px;border:1px solid var(--line,#e1e7ed);border-radius:14px;background:var(--surface,#fff)}
+.stc-staff-permissions .stc-admin-panel-heading,.stc-staff-activity .stc-admin-panel-heading{align-items:flex-start;margin-bottom:14px}
+.stc-staff-permissions .stc-admin-panel-heading p,.stc-staff-activity .stc-admin-panel-heading p{margin:5px 0 0;color:var(--muted,#687386);font-size:.82rem}
+.stc-staff-permissions-table{min-width:720px}
+.stc-staff-permissions-table th,.stc-staff-permissions-table td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line,#e1e7ed);font-size:.78rem}
+.stc-staff-permissions-table thead th{background:var(--surface-muted,#f5f7fa);font-weight:700}
+.stc-staff-access-yes{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f5ef;color:#176b49;font-size:.7rem;font-weight:700}
+.stc-staff-access-no{color:#9aa5b1}
+.stc-staff-permissions-note{margin:12px 0 0;color:var(--muted,#687386);font-size:.78rem;line-height:1.5}
+.stc-staff-activity-content code{font-size:.7rem;overflow-wrap:anywhere}
+@media(max-width:680px){.stc-staff-permissions,.stc-staff-activity{padding:14px}}

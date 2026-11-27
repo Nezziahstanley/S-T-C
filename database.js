@@ -7,6 +7,7 @@ const TABLES = new Set([
   "stc_audit_logs","stc_awards","stc_brand_signatures","stc_certificates",
   "stc_enquiries","stc_invoices","stc_media","stc_messages","stc_notifications",
   "stc_payment_settings","stc_payments","stc_portfolio","stc_posts","stc_profiles",
+  "stc_role_permissions","stc_staff_role_definitions",
   "stc_projects","stc_quotes","stc_services","stc_staff_roles","stc_tickets",
   "stc_training_enrollments"
 ]);

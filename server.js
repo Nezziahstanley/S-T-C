@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { db } from "./database.js";
+import { authDatabasePool } from "./auth.js";
 import { auth } from "./auth.js";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import path from "node:path";
@@ -791,6 +792,29 @@ app.get("/api/admin/staff", requireStaff, async (req,res) => {
   });
   res.json({items});
 });
+app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can search accounts." });
+  const term = clean(req.query?.q);
+  if (term.length < 2) return res.json({ accounts: [] });
+  if (term.length > 120) return res.status(400).json({ error: "Search text is too long." });
+  try {
+    const pattern = "%" + term.replace(/[\\%_]/g, "\\app.get("/api/admin/:resource", requireStaff, async (req, res) => {") + "%";
+    const result = await authDatabasePool.query(
+      'SELECT u.id, u.email, u.name, p.full_name, p.account_type, p.department FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id = u.id WHERE u.email ILIKE $1 OR u.name ILIKE $1 OR p.full_name ILIKE $1 ORDER BY COALESCE(NULLIF(p.full_name, \'\'), u.name), u.email LIMIT 12',
+      [pattern]
+    );
+    res.json({ accounts: result.rows.map(row => ({
+      user_id: row.id,
+      name: row.full_name || row.name || "Name not provided",
+      email: row.email,
+      account_type: row.account_type || "profile incomplete",
+      department: row.department || ""
+    })) });
+  } catch (error) {
+    return sendError(res, error, 500);
+  }
+});
+
 app.get("/api/admin/:resource", requireStaff, async (req, res) => {
   const table = adminTables[req.params.resource];
   if (!table) return res.status(404).json({ error: "Unknown admin resource." });
@@ -810,7 +834,10 @@ app.post("/api/admin/:resource", requireStaff, async (req, res) => {
     const user_id = clean(req.body?.user_id);
     const role = clean(req.body?.role);
     const allowed = ["manager", "project_manager", "finance", "support", "content_editor"];
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !allowed.includes(role)) return res.status(400).json({ error: "Enter the UUID of an existing STC account and choose a valid staff role." });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id) || !allowed.includes(role)) return res.status(400).json({ error: "Select an existing STC account and choose a valid staff role." });
+    if (user_id === req.user.id) return res.status(409).json({ error: "Your own administrator account cannot be assigned through this form." });
+    const accountCheck = await authDatabasePool.query('SELECT id FROM auth."user" WHERE id = $1 LIMIT 1', [user_id]);
+    if (!accountCheck.rowCount) return res.status(404).json({ error: "That STC account could not be found. Search and select an account from the results." });
     const { data, error } = await db.from("stc_staff_roles").upsert({ user_id, role, is_active: true }, { onConflict: "user_id" }).select("*").single();
     if (error) return sendError(res, error, 400);
     await audit(req.user, "assign_staff_role", "staff", user_id, { role });

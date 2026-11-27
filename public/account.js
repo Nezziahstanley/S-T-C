@@ -467,10 +467,6 @@
             if(activityRoot)activityRoot.innerHTML='<p class="stc-account-status is-error">'+esc(error.message)+'</p>';
           });
 
-            const permissionRoot=$("#stcStaffPermissions"), activityRoot=$("#stcStaffActivity");
-            if(permissionRoot) permissionRoot.innerHTML='<p class="stc-account-status is-error">'+esc(error.message)+'</p>';
-            if(activityRoot) activityRoot.innerHTML='<p class="stc-account-status is-error">'+esc(error.message)+'</p>';
-          });
         }
         const assignForm = $("#stcAssignStaffForm");
         if (assignForm) {

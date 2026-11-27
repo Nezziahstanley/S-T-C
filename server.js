@@ -835,10 +835,10 @@ app.get("/api/admin/staff/accounts", requireStaff, async (req, res) => {
 
 app.get("/api/staff/my-permissions", requireStaff, async (req,res) => {
   if(req.staffRole==="super_admin") return res.json({resources:permissionResources,permissions:Object.fromEntries(permissionResources.map(key=>[key,{read:true,create:true,update:true,delete:true}]))});
-  const {data,error}=await db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole);
+  const [{data,error},{data:roleDef}]=await Promise.all([db.from("stc_role_permissions").select("resource_key,can_create,can_read,can_update,can_delete").eq("role_key",req.staffRole),db.from("stc_staff_role_definitions").select("label").eq("role_key",req.staffRole).maybeSingle()]);
   if(error)return sendError(res,error,500);
   const permissions=Object.fromEntries((data||[]).map(row=>[row.resource_key,{read:row.can_read,create:row.can_create,update:row.can_update,delete:row.can_delete}]));
-  res.json({resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
+  res.json({role_label:roleDef?.label||req.staffRole,resources:permissionResources.filter(key=>permissions[key]?.read),permissions});
 });
 app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
   if (req.staffRole !== "super_admin") return res.status(403).json({ error: "Only the CEO administrator can manage staff permissions." });
@@ -860,7 +860,7 @@ app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
   const rows=permissionResources.map(resource_key=>({role_key,resource_key,can_create:false,can_read:false,can_update:false,can_delete:false}));
   const seeded=await db.from("stc_role_permissions").insert(rows);
   if(seeded.error){await db.from("stc_staff_role_definitions").delete().eq("role_key",role_key);return sendError(res,seeded.error,500);}
-  await audit(req.user,"create_staff_role","staff_role",role_key,{label});
+  await audit(req.user,"create_staff_role","staff",role_key,{label});
   res.status(201).json({item:data});
 });
 app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
@@ -873,7 +873,7 @@ app.patch("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
   const {data,error}=await db.from("stc_staff_role_definitions").update(payload).eq("role_key",roleKey).select().maybeSingle();
   if(error)return sendError(res,error,400);
   if(!data)return res.status(404).json({error:"Staff role not found."});
-  await audit(req.user,"update_staff_role_definition","staff_role",roleKey,payload);
+  await audit(req.user,"update_staff_role_definition","staff",roleKey,payload);
   res.json({item:data});
 });
 app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
@@ -888,7 +888,7 @@ app.delete("/api/admin/staff/roles/:roleKey", requireStaff, async (req,res) => {
   if(assigned.count)return res.status(409).json({error:"This role is assigned to "+assigned.count+" staff member(s). Reassign them before deleting it."});
   const {error}=await db.from("stc_staff_role_definitions").delete().eq("role_key",roleKey);
   if(error)return sendError(res,error,400);
-  await audit(req.user,"delete_staff_role","staff_role",roleKey,{});
+  await audit(req.user,"delete_staff_role","staff",roleKey,{});
   res.json({message:"Role deleted."});
 });
 app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
@@ -909,7 +909,7 @@ app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
   }
   const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
   if(error)return sendError(res,error,400);
-  await audit(req.user,"update_staff_permissions","staff_role",roleKey,{resources:rows.length});
+  await audit(req.user,"update_staff_permissions","staff",roleKey,{resources:rows.length});
   res.json({message:"Permissions saved.",updated:rows.length});
 });
 app.get("/api/admin/staff/activity", requireStaff, async (req, res) => {

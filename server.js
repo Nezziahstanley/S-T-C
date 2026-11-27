@@ -136,7 +136,91 @@ const permissionCapabilities = {
   posts:{create:true,read:true,update:true,delete:true},
   portfolio:{create:true,read:true,update:true,delete:true},
   media:{create:true,read:true,update:true,delete:true}
+
 };
+
+async function ensureStaffPermissionSchema() {
+  await authDatabasePool.query(`
+    CREATE TABLE IF NOT EXISTS public.stc_staff_role_definitions (
+      role_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      is_system BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS stc_staff_role_definitions_role_key_uidx
+      ON public.stc_staff_role_definitions(role_key);
+    CREATE TABLE IF NOT EXISTS public.stc_role_permissions (
+      role_key TEXT NOT NULL,
+      resource_key TEXT NOT NULL,
+      can_create BOOLEAN NOT NULL DEFAULT FALSE,
+      can_read BOOLEAN NOT NULL DEFAULT FALSE,
+      can_update BOOLEAN NOT NULL DEFAULT FALSE,
+      can_delete BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS stc_role_permissions_role_resource_uidx
+      ON public.stc_role_permissions(role_key, resource_key);
+  `);
+
+  const roles = [
+    ["manager","Operations Manager","Manages day-to-day STC operations.",true],
+    ["project_manager","Project Manager","Manages projects and related customer requests.",true],
+    ["finance","Finance Officer","Manages quotes, invoices and payment verification.",true],
+    ["support","Customer Support","Handles enquiries and support tickets.",true],
+    ["content_editor","Content Editor","Manages website content and media.",true]
+  ];
+  for (const [role_key,label,description,is_system] of roles) {
+    await authDatabasePool.query(
+      "INSERT INTO public.stc_staff_role_definitions (role_key,label,description,is_system) VALUES ($1,$2,$3,$4) ON CONFLICT (role_key) DO NOTHING",
+      [role_key,label,description,is_system]
+    );
+  }
+
+  const access = {
+    manager: new Set(permissionResources),
+    project_manager: new Set(["enquiries","projects","tickets"]),
+    finance: new Set(["quotes","invoices","payments"]),
+    support: new Set(["enquiries","tickets"]),
+    content_editor: new Set(["services","posts","portfolio","media"])
+  };
+  const rows = [];
+  for (const [roleKey,resources] of Object.entries(access)) {
+    for (const resource of resources) {
+      const supported = permissionCapabilities[resource] || {};
+      const canCreate = Boolean(supported.create && (
+        roleKey === "manager" || roleKey === "project_manager" && ["projects","tickets"].includes(resource) ||
+        roleKey === "support" && resource === "tickets" || roleKey === "finance" && ["quotes","invoices"].includes(resource) ||
+        roleKey === "content_editor"
+      ));
+      const canRead = Boolean(supported.read);
+      const canUpdate = Boolean(supported.update && (
+        roleKey === "manager" || roleKey === "project_manager" ||
+        roleKey === "support" || roleKey === "finance" && resource === "payments" ||
+        roleKey === "content_editor"
+      ));
+      const canDelete = Boolean(supported.delete && (
+        roleKey === "manager" || roleKey === "content_editor"
+      ));
+      rows.push([roleKey,resource,canCreate,canRead,canUpdate,canDelete]);
+    }
+  }
+  if (rows.length) {
+    const values = [];
+    const params = [];
+    for (const row of rows) {
+      const slots = row.map(value => { params.push(value); return "$" + params.length; });
+      values.push("(" + slots.join(",") + ")");
+    }
+    await authDatabasePool.query(
+      "INSERT INTO public.stc_role_permissions (role_key,resource_key,can_create,can_read,can_update,can_delete) VALUES " +
+      values.join(",") + " ON CONFLICT (role_key,resource_key) DO NOTHING",
+      params
+    );
+  }
+}
+
 async function staffCan(req, resource, action = "read") {
   if (req.staffRole === "super_admin") return true;
   if (!["create", "read", "update", "delete"].includes(action)) return false;
@@ -1294,4 +1378,9 @@ app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "API route not found." }));
 app.get("/{*splat}", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
-app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+ensureStaffPermissionSchema().then(() => {
+  app.listen(PORT, () => console.log("Stanley Tech Connect platform listening on " + PORT));
+}).catch(error => {
+  console.error("STC staff permission schema initialization failed:", error);
+  process.exit(1);
+});

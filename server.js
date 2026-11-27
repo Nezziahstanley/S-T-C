@@ -122,6 +122,21 @@ async function requireStaff(req, res, next) {
 }
 
 const permissionResources = ["profiles","students","clients","enrollments","certificates","awards","enquiries","projects","quotes","invoices","payments","tickets","services","posts","portfolio","media"];
+const permissionCapabilities = {
+  profiles:{read:true},students:{read:true},clients:{read:true},
+  enrollments:{read:true,update:true,delete:true},
+  certificates:{read:true,update:true,delete:true},awards:{read:true,update:true,delete:true},
+  enquiries:{read:true,update:true},
+  projects:{create:true,read:true,update:true,delete:true},
+  quotes:{create:true,read:true,update:true,delete:true},
+  invoices:{create:true,read:true,update:true,delete:true},
+  payments:{read:true,update:true},
+  tickets:{create:true,read:true,update:true,delete:true},
+  services:{create:true,read:true,update:true,delete:true},
+  posts:{create:true,read:true,update:true,delete:true},
+  portfolio:{create:true,read:true,update:true,delete:true},
+  media:{create:true,read:true,update:true,delete:true}
+};
 async function staffCan(req, resource, action = "read") {
   if (req.staffRole === "super_admin") return true;
   if (!["create", "read", "update", "delete"].includes(action)) return false;
@@ -833,7 +848,7 @@ app.get("/api/admin/staff/permissions", requireStaff, async (req, res) => {
   ]);
   if (rolesResult.error) return sendError(res, rolesResult.error, 500);
   if (permissionsResult.error) return sendError(res, permissionsResult.error, 500);
-  res.json({ roles: rolesResult.data || [], resources: permissionResources, permissions: permissionsResult.data || [] });
+  res.json({ roles: rolesResult.data || [], resources: permissionResources, capabilities: permissionCapabilities, permissions: permissionsResult.data || [] });
 });
 app.post("/api/admin/staff/roles", requireStaff, async (req,res) => {
   if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only Super Admin can create staff roles."});
@@ -888,6 +903,8 @@ app.put("/api/admin/staff/permissions", requireStaff, async (req,res) => {
   const rows=[];
   for(const item of changes){
     if(!allowed.has(item.resource_key))return res.status(400).json({error:"Unknown management area."});
+    const supported=permissionCapabilities[item.resource_key]||{};
+    for(const action of ["create","read","update","delete"]) if(item["can_"+action] && !supported[action]) return res.status(400).json({error:"The "+action.toUpperCase()+" action is not currently supported for "+item.resource_key+"."});
     rows.push({role_key:roleKey,resource_key:item.resource_key,can_create:Boolean(item.can_create),can_read:Boolean(item.can_read),can_update:Boolean(item.can_update),can_delete:Boolean(item.can_delete),updated_at:new Date().toISOString()});
   }
   const {error}=await db.from("stc_role_permissions").upsert(rows,{onConflict:"role_key,resource_key"});
@@ -1212,7 +1229,7 @@ app.get("/api/admin/payment-settings", requireStaff, async (req, res) => {
   res.json({ settings: data || {} });
 });
 app.put("/api/admin/payment-settings", requireStaff, async (req, res) => {
-  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
   const bank_name = clean(req.body?.bank_name);
   const account_name = clean(req.body?.account_name);
   const account_number = clean(req.body?.account_number);
@@ -1239,7 +1256,7 @@ app.get("/api/admin/payments/:id/receipt", requireStaff, async (req, res) => {
   res.json({ url:data.signedUrl, expires_in:300 });
 });
 app.post("/api/admin/payments/:id/verify", requireStaff, async (req, res) => {
-  if (!(await staffCan(req, "payments", "read"))) return res.status(403).json({ error: "Finance access is required." });
+  if (!(await staffCan(req, "payments", "update"))) return res.status(403).json({ error: "Finance update permission is required." });
   const id = Number(req.params.id);
   const decision = clean(req.body?.decision);
   const rejection_reason = clean(req.body?.rejection_reason);

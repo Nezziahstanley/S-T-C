@@ -440,3 +440,34 @@
 @media(max-width:980px){.stc-profile-directory .stc-admin-resource-tools{grid-template-columns:minmax(220px,1fr) minmax(140px,180px)}.stc-profile-directory .stc-admin-resource-tools #stcResourcePage{justify-content:flex-start}.stc-profile-directory-heading{align-items:flex-start;flex-direction:column}.stc-profile-directory-actions{justify-content:flex-start}}
 @media(max-width:620px){.stc-admin-layout .stc-profile-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stc-profile-summary .stc-dash-metric{min-height:96px;padding:14px}.stc-profile-summary .stc-dash-metric strong{font-size:1.65rem}.stc-profile-directory{padding:16px!important}.stc-profile-directory .stc-admin-resource-tools{grid-template-columns:1fr}.stc-profile-directory-actions{width:100%}.stc-profile-directory-actions button{flex:1}.stc-profile-activity{padding:17px!important}}
 @media(max-width:380px){.stc-admin-layout .stc-profile-summary{grid-template-columns:1fr}}
+
+/* Super Admin personal profile and photo editor */
+.stc-dash-top-actions{display:flex;align-items:center;gap:12px}
+.stc-admin-profile-trigger{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid #dce6ef;border-radius:999px;background:#fff;color:#24425e;font-weight:650;cursor:pointer}
+.stc-admin-profile-mini{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#e7f4f8;color:#087fa9;font-size:12px;font-weight:800;overflow:hidden}
+.stc-admin-profile-mini img{width:100%;height:100%;object-fit:cover}
+.stc-own-profile-modal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(9,25,43,.58);backdrop-filter:blur(5px)}
+.stc-own-profile-modal.hidden{display:none}
+.stc-own-profile-dialog{width:min(620px,100%);max-height:min(88vh,850px);overflow:auto;padding:25px;border:1px solid #e4ebf2;border-radius:20px;background:#fff;box-shadow:0 25px 80px rgba(0,0,0,.2)}
+.stc-own-profile-dialog>header{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin-bottom:20px}
+.stc-own-profile-dialog h2{margin:4px 0;color:#153653;font-size:1.25rem}
+.stc-own-profile-x{width:34px;height:34px;border:0;border-radius:9px;background:#f1f5f8;color:#50647a;font-size:23px;cursor:pointer}
+.stc-own-profile-hero{display:flex;align-items:center;gap:16px;padding:17px;margin-bottom:18px;border:1px solid #e6edf3;border-radius:14px;background:#f8fbfd}
+.stc-own-profile-avatar{display:grid;place-items:center;flex:0 0 76px;width:76px;height:76px;border-radius:50%;overflow:hidden;background:#e2f2f7;color:#087fa9;font-size:1.8rem;font-weight:800}
+.stc-own-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.stc-own-profile-hero h3{margin:4px 0;color:#153653;font-size:1rem}
+.stc-own-profile-hero p,.stc-own-avatar-upload p{margin:4px 0;color:#73849a;font-size:.76rem;overflow-wrap:anywhere}
+.stc-own-profile-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.stc-own-profile-form label{display:grid;gap:6px;color:#50647a;font-size:.75rem;font-weight:650}
+.stc-own-profile-form input{width:100%;min-height:42px;padding:10px 12px;border:1px solid #dce6ef;border-radius:9px;color:#233e59;background:#fff}
+.stc-own-profile-form input:disabled{background:#f4f7fa;color:#8291a4}
+.stc-own-profile-actions{grid-column:1/-1;display:flex;gap:9px}
+.stc-own-profile-actions button,.stc-own-avatar-picker{padding:10px 14px;border:1px solid #dce6ef;border-radius:9px;background:#fff;color:#34516b;font-size:.76rem;font-weight:700;cursor:pointer}
+.stc-own-profile-actions .stc-profile-primary-action{border-color:#087fa9;background:#087fa9;color:#fff}
+.stc-own-profile-form>.stc-account-status{grid-column:1/-1;margin:0}
+.stc-own-avatar-upload{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:19px;padding-top:17px;border-top:1px solid #e8eef4}
+.stc-own-avatar-upload strong{color:#173653;font-size:.82rem}
+.stc-own-avatar-picker{white-space:nowrap}
+.stc-own-avatar-picker input{display:none}
+.stc-own-avatar-upload>.stc-account-status{margin:0}
+@media(max-width:560px){.stc-own-profile-dialog{padding:17px}.stc-own-profile-form{grid-template-columns:1fr}.stc-own-profile-actions,.stc-own-avatar-upload{flex-wrap:wrap}.stc-dash-top-actions{gap:6px}.stc-admin-profile-trigger{padding:4px 7px}.stc-admin-profile-trigger>span:last-child{display:none}}

@@ -392,12 +392,49 @@ app.post("/api/enquiries", enquiryLimiter, async (req, res) => {
   });
 });
 
+app.get("/api/admin/me/profile", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the Super Admin can manage this profile."});
+  try {
+    const result = await authDatabasePool.query('SELECT u.id,u.name,u.email,u.image,p.phone,p.company,p.full_name FROM auth."user" u LEFT JOIN public.stc_profiles p ON p.user_id=u.id WHERE u.id=$1 LIMIT 1',[req.user.id]);
+    if (!result.rowCount) return res.status(404).json({error:"Administrator account not found."});
+    const row=result.rows[0];
+    res.json({profile:{id:row.id,name:row.full_name||row.name||"",email:row.email,image:row.image||"",phone:row.phone||"",company:row.company||""}});
+  } catch(error){return sendError(res,error,500);}
+});
+app.patch("/api/admin/me/profile", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the Super Admin can manage this profile."});
+  const name=clean(req.body?.name), phone=clean(req.body?.phone), company=clean(req.body?.company);
+  if(!name||name.length>120||phone.length>40||company.length>160) return res.status(400).json({error:"Enter a valid name, phone number and organisation."});
+  try {
+    await authDatabasePool.query('UPDATE auth."user" SET name=$1,"updatedAt"=NOW() WHERE id=$2',[name,req.user.id]);
+    await authDatabasePool.query("UPDATE public.stc_profiles SET full_name=$1,phone=$2,company=$3,updated_at=NOW() WHERE user_id=$4",[name,phone||null,company||null,req.user.id]);
+    await audit(req.user,"update_own_admin_profile","profiles",req.user.id,{fields:["name","phone","company"]});
+    res.json({message:"Administrator profile updated.",name});
+  } catch(error){return sendError(res,error,500);}
+});
+app.post("/api/admin/me/avatar", requireStaff, async (req,res) => {
+  if (req.staffRole !== "super_admin") return res.status(403).json({error:"Only the Super Admin can update this profile image."});
+  const mime=clean(req.body?.mimeType).toLowerCase(), encoded=clean(req.body?.data);
+  const formats={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+  if(!formats[mime]||!encoded||encoded.length>3000000) return res.status(400).json({error:"Choose a JPG, PNG or WEBP image no larger than 2 MB."});
+  try {
+    const buffer=Buffer.from(encoded,"base64");
+    if(!buffer.length||buffer.length>2*1024*1024) return res.status(400).json({error:"Profile image must be no larger than 2 MB."});
+    const key="super-admin/"+req.user.id+"/avatar."+formats[mime];
+    const uploaded=await db.storage.from("stc-media").upload(key,buffer,{contentType:mime,upsert:true});
+    if(uploaded.error) return sendError(res,new Error(uploaded.error.message),500);
+    const imageUrl=uploaded.data.secure_url;
+    await authDatabasePool.query('UPDATE auth."user" SET image=$1,"updatedAt"=NOW() WHERE id=$2',[imageUrl,req.user.id]);
+    await audit(req.user,"update_admin_avatar","profiles",req.user.id,{mime_type:mime,size_bytes:buffer.length});
+    res.json({message:"Profile photo updated.",image:imageUrl});
+  } catch(error){return sendError(res,error,500);}
+});
 app.get("/api/auth/me", requireUser, async (req, res) => {
   const { data: profile } = await db.from("stc_profiles")
     .select("full_name,phone,company,account_type,institution,department,study_level,student_number").eq("user_id", req.user.id).maybeSingle();
   const role = await resolveAccountRole(req.user);
   res.json({
-    user: { id: req.user.id, email: req.user.email }, profile,
+    user: { id: req.user.id, email: req.user.email, name: req.user.name, image: req.user.image || null }, profile,
     role,
     is_admin: role === "super_admin"
   });

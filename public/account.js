@@ -177,19 +177,20 @@
       '<div class="stc-admin-side-foot"><span>STC ADMINISTRATION</span><small>Secure management workspace</small></div></nav>';
   }
   function adminLayoutStart(role, active) {
-    return role === "super_admin" ? '<div class="stc-admin-layout"><aside class="stc-admin-sidebar">'+adminSidebar(active)+'</aside>' : '';
+    return role === "super_admin" ? '<div class="stc-admin-layout"><button type="button" class="stc-admin-mobile-toggle" id="stcAdminNavToggle" aria-controls="stcAdminSidebar" aria-expanded="false"><span aria-hidden="true">☰</span> Dashboard menu</button><aside class="stc-admin-sidebar" id="stcAdminSidebar">'+adminSidebar(active)+'</aside>' : '';
   }
   function adminLayoutEnd(role) {
     return role === "super_admin" ? '</div>' : '';
   }
 
   const adminChartPalette = ["#087fa9","#21a6b4","#67c6bb","#f0ad4e","#7586d8","#e17c91","#4d9c83","#9b8bd3"];
-  function adminChartPanel(title, values, key = "chart", defaultType = "bar", suffix = "") {
+  function adminChartPanel(title, values, key = "chart", defaultType = "bar", suffix = "", allowLine = false) {
     const entries = Object.entries(values || {}).map(([label,value])=>[label,Number(value)||0]).sort((a,b)=>a[0].localeCompare(b[0]));
     const preference = (()=>{try{return JSON.parse(localStorage.getItem("stcAdminDashboardPrefs")||"{}")}catch{return {}}})();
-    const type = ["bar","donut","line"].includes(preference.types?.[key])?preference.types[key]:defaultType;
+    const allowedTypes = allowLine ? ["bar","donut","line"] : ["bar","donut"];
+    const type = allowedTypes.includes(preference.types?.[key])?preference.types[key]:defaultType;
     const hidden = preference.hidden?.includes(key);
-    return '<section class="stc-dash-panel stc-admin-chart" data-chart-key="'+esc(key)+'" data-chart-values="'+esc(JSON.stringify(entries))+'" data-chart-suffix="'+esc(suffix)+'" '+(hidden?'hidden':'')+'><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">LIVE RECORD INSIGHTS</span><h3>'+esc(title)+'</h3></div><div class="stc-admin-chart-tools"><span>'+entries.length+' categories</span><label class="stc-admin-chart-setting">View <select data-chart-type aria-label="Chart type for '+esc(title)+'"><option value="bar" '+(type==="bar"?"selected":"")+'>Bar</option><option value="donut" '+(type==="donut"?"selected":"")+'>Donut</option><option value="line" '+(type==="line"?"selected":"")+'>Trend line</option></select></label><label class="stc-admin-chart-hide"><input type="checkbox" data-chart-visible '+(!hidden?"checked":"")+'> Show</label></div></div><div class="stc-admin-chart-visual" aria-live="polite"></div></section>';
+    return '<section class="stc-dash-panel stc-admin-chart" data-chart-key="'+esc(key)+'" data-chart-values="'+esc(JSON.stringify(entries))+'" data-chart-suffix="'+esc(suffix)+'" '+(hidden?'hidden':'')+'><div class="stc-admin-panel-heading"><div><span class="stc-admin-eyebrow">LIVE RECORD INSIGHTS</span><h3>'+esc(title)+'</h3></div><div class="stc-admin-chart-tools"><span>'+entries.length+' categories</span><label class="stc-admin-chart-setting">View <select data-chart-type aria-label="Chart type for '+esc(title)+'"><option value="bar" '+(type==="bar"?"selected":"")+'>Bar</option><option value="donut" '+(type==="donut"?"selected":"")+'>Donut</option>'+(allowLine?'<option value="line" '+(type==="line"?"selected":"")+'>Trend line</option>':'')+'</select></label><label class="stc-admin-chart-hide"><input type="checkbox" data-chart-visible '+(!hidden?"checked":"")+'> Show</label></div></div><div class="stc-admin-chart-visual" aria-live="polite"></div></section>';
   }
   function renderAdminChart(card) {
     const entries=JSON.parse(card.dataset.chartValues||"[]"), type=card.querySelector("[data-chart-type]")?.value||"bar", suffix=card.dataset.chartSuffix||"";
@@ -215,6 +216,9 @@
     const read=()=>{try{return JSON.parse(localStorage.getItem(prefsKey)||"{}")}catch{return {}}};
     const save=p=>{try{localStorage.setItem(prefsKey,JSON.stringify(p))}catch{}};
     const grid=$("#stcAdminChartGrid",rootEl), toggle=$("#stcAdminCustomize",rootEl), controls=$("#stcAdminLayoutControls",rootEl);
+    const navToggle=$("#stcAdminNavToggle",rootEl), sidebar=$("#stcAdminSidebar",rootEl);
+    navToggle?.addEventListener("click",()=>{const open=navToggle.getAttribute("aria-expanded")!=="true";navToggle.setAttribute("aria-expanded",String(open));sidebar?.classList.toggle("is-open",open);});
+    sidebar?.querySelectorAll("a").forEach(link=>link.addEventListener("click",()=>{navToggle?.setAttribute("aria-expanded","false");sidebar.classList.remove("is-open");}));
     const prefs=read();
     if(grid){
       grid.classList.toggle("is-three-columns",prefs.columns===3);
@@ -433,7 +437,7 @@
           const analytics = overview?.analytics || {};
           const revenueItems = Object.entries(analytics.revenue_by_currency || {}).map(([currency,amount])=>[currency,Number(amount)||0]);
           const revenuePanel = adminChartPanel("Successful payments by currency (latest 1,000)",Object.fromEntries(revenueItems.map(([currency,amount])=>[currency,amount])),"revenue","bar");
-          const chart = '<div class="stc-admin-customize-row"><div><span class="stc-admin-eyebrow">YOUR WORKSPACE</span><strong>Dashboard display</strong></div><button type="button" id="stcAdminCustomize" aria-expanded="false">Customize dashboard</button></div><div class="stc-admin-layout-controls" id="stcAdminLayoutControls" hidden><label>Chart columns <select data-layout-columns><option value="2">Two columns</option><option value="3">Three columns</option></select></label><label><input type="checkbox" data-layout-compact> Compact chart cards</label><button type="button" data-layout-reset>Reset dashboard layout</button></div><div class="stc-admin-chart-grid" id="stcAdminChartGrid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status,"project","donut")+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status,"payment","donut")+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status,"enrolment","donut")+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status,"enquiry","donut")+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity,"monthly","line")+revenuePanel+'</div>';
+          const chart = '<div class="stc-admin-customize-row"><div><span class="stc-admin-eyebrow">YOUR WORKSPACE</span><strong>Dashboard display</strong></div><button type="button" id="stcAdminCustomize" aria-expanded="false">Customize dashboard</button></div><div class="stc-admin-layout-controls" id="stcAdminLayoutControls" hidden><label>Chart columns <select data-layout-columns><option value="2">Two columns</option><option value="3">Three columns</option></select></label><label><input type="checkbox" data-layout-compact> Compact chart cards</label><button type="button" data-layout-reset>Reset dashboard layout</button></div><div class="stc-admin-chart-grid" id="stcAdminChartGrid">'+adminChartPanel("Project status (latest 1,000)",analytics.project_status,"project","donut")+adminChartPanel("Payment status (latest 1,000)",analytics.payment_status,"payment","donut")+adminChartPanel("Training enrolment status (latest 1,000)",analytics.enrolment_status,"enrolment","donut")+adminChartPanel("Enquiry status (latest 1,000)",analytics.enquiry_status,"enquiry","donut")+adminChartPanel("Monthly activity (recent six months)",analytics.monthly_activity,"monthly","line","",true)+revenuePanel+'</div>';
           const groups = [
             ["People & access",["staff","profiles","enrollments","certificates","awards"]],
             ["Business operations",["enquiries","projects","quotes","invoices","payments","tickets"]],
